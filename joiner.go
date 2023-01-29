@@ -27,7 +27,7 @@ func SetMP3Metadata() error {
 	return nil
 }
 
-func (c *MP3Container) Persit(path string) (err error) {
+func (c *MP3Container) Persist(path string) (err error) {
 	err = ioutil.WriteFile(path, c.buffer, os.ModePerm)
 	return err
 }
