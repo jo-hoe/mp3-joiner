@@ -3,7 +3,6 @@ package mp3joiner
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 
 	"github.com/hajimehoshi/go-mp3"
@@ -28,7 +27,7 @@ func SetMP3Metadata() error {
 }
 
 func (c *MP3Container) Persist(path string) (err error) {
-	err = ioutil.WriteFile(path, c.buffer, os.ModePerm)
+	err = os.WriteFile(path, c.buffer, os.ModePerm)
 	return err
 }
 
