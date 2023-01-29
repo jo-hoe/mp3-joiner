@@ -53,11 +53,6 @@ func (c *MP3Container) AddSection(mp3Filepath string, startInSeconds int, endInS
 		return err
 	}
 
-	allBytes, err := io.ReadAll(mp3File)
-	if err != nil {
-		return err
-	}
-
 	// in case "-1" is set get file until the end
 	if endInSeconds == -1 {
 		endInSeconds = int(mp3File.Length())
@@ -66,9 +61,29 @@ func (c *MP3Container) AddSection(mp3Filepath string, startInSeconds int, endInS
 	startPos := byteOfSecond(startInSeconds, mp3File.SampleRate())
 	// calculate size of buffer
 	endPos := byteOfSecond(endInSeconds, mp3File.SampleRate())
+	lastBytePos := byteOfSecond(int(mp3File.Length()), mp3File.SampleRate())
+	if endPos > lastBytePos {
+		endPos = lastBytePos
+	}
+
+	// seek to the start position
+	_, err = mp3File.Seek(int64(startPos), io.SeekStart)
+	if err != nil {
+		return err
+	}
+
+	// read all until EOF
+	temp := make([]byte, endPos-startPos)
+	for i := 0; i < endPos-startPos; {
+		readBytes, err := mp3File.Read(temp)
+		if err == io.EOF {
+			break
+		}
+		i += readBytes
+	}
 
 	// copy item onto the end of the current buffer
-	c.buffer = append(c.buffer, allBytes[startPos:endPos]...)
+	c.buffer = append(c.buffer, temp...)
 
 	return err
 }
