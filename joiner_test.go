@@ -34,6 +34,28 @@ func TestMP3Container_AddSection(t *testing.T) {
 			wantErr:          false,
 			wantResultLength: 22050,
 		},
+		{
+			name: "end before start",
+			c:    NewMP3(),
+			args: args{
+				mp3Filepath:    filepath.Join(getMP3TestFolder(t), testFileName),
+				startInSeconds: 1,
+				endInSeconds:   0,
+			},
+			wantErr:          true,
+			wantResultLength: 0,
+		},
+		{
+			name: "read until end",
+			c:    NewMP3(),
+			args: args{
+				mp3Filepath:    filepath.Join(getMP3TestFolder(t), testFileName),
+				startInSeconds: 4239, //file has ~ 4,239.99 seconds
+				endInSeconds:   -1,
+			},
+			wantErr:          false,
+			wantResultLength: 21762,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

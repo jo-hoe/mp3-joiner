@@ -53,17 +53,17 @@ func (c *MP3Container) AddSection(mp3Filepath string, startInSeconds int, endInS
 		return err
 	}
 
-	// in case "-1" is set get file until the end
-	if endInSeconds == -1 {
-		endInSeconds = int(mp3File.Length())
-	}
+	// calculate size of buffer
 	// calculated starting point in bytes
 	startPos := byteOfSecond(startInSeconds, mp3File.SampleRate())
-	// calculate size of buffer
-	endPos := byteOfSecond(endInSeconds, mp3File.SampleRate())
-	lastBytePos := byteOfSecond(int(mp3File.Length()), mp3File.SampleRate())
-	if endPos > lastBytePos {
-		endPos = lastBytePos
+
+	// set end to last position
+	lastByteIndex := int(mp3File.Length())
+	endPosInByte := byteOfSecond(endInSeconds, mp3File.SampleRate())
+	endPos := lastByteIndex
+	// set defined pos is not set to -1 end and end is in length of mp3
+	if endInSeconds != -1 && endPosInByte < lastByteIndex {
+		endPos = endPosInByte
 	}
 
 	// seek to the start position
