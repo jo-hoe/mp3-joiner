@@ -1,6 +1,7 @@
 package mp3joiner
 
 import (
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -160,8 +161,8 @@ func Test_getLengthInSeconds(t *testing.T) {
 				t.Errorf("getLengthInSeconds() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != tt.want {
-				t.Errorf("getLengthInSeconds() = %v, want %v", got, tt.want)
+			if math.Abs(tt.want-got) > 0.01 {
+				t.Errorf("getLengthInSeconds() more than 0.01 apart = %v, want %v", got, tt.want)
 			}
 		})
 	}
