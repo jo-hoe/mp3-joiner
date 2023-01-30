@@ -1,20 +1,28 @@
 package mp3joiner
 
 import (
+	"bytes"
 	"fmt"
-	"io"
+	"math/rand"
 	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"time"
 
-	"github.com/hajimehoshi/go-mp3"
+	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
+var FFMPEG_STATS_REGEX = regexp.MustCompile(`.+time=(?:.*)([0-9]{2,99}):([0-9]{2}):([0-9]{2}).([0-9]{2})`)
+var random = rand.New(rand.NewSource(time.Now().UnixNano()))
+
 type MP3Container struct {
-	buffer []byte
+	streams []*ffmpeg.Stream
 }
 
 func NewMP3() *MP3Container {
 	return &MP3Container{
-		buffer: make([]byte, 0),
+		streams: make([]*ffmpeg.Stream, 0),
 	}
 }
 
@@ -27,7 +35,10 @@ func SetMP3Metadata() error {
 }
 
 func (c *MP3Container) Persist(path string) (err error) {
-	err = os.WriteFile(path, c.buffer, os.ModePerm)
+	if len(c.streams) < 1 {
+		return fmt.Errorf("no streams to persist")
+	}
+	err = ffmpeg.MergeOutputs(c.streams...).Run()
 	return err
 }
 
@@ -37,58 +48,62 @@ func (c *MP3Container) AddSection(mp3Filepath string, startInSeconds int, endInS
 		return fmt.Errorf("start %v set after end %v", startInSeconds, endInSeconds)
 	}
 
-	// open and parse mp3 file
-	file, err := os.Open(mp3Filepath)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if file != nil {
-			err = file.Close()
-		}
-	}()
-	mp3File, err := mp3.NewDecoder(file)
-	if err != nil {
-		return err
-	}
-
-	// calculate size of buffer
-	// calculated starting point in bytes
-	startPos := byteOfSecond(startInSeconds, mp3File.SampleRate())
-
 	// set end to last position
-	lastByteIndex := int(mp3File.Length())
-	endPosInByte := byteOfSecond(endInSeconds, mp3File.SampleRate())
-	endPos := lastByteIndex
-	// set defined pos is not set to -1 end and end is in length of mp3
-	if endInSeconds != -1 && endPosInByte < lastByteIndex {
-		endPos = endPosInByte
-	}
-
-	// seek to the start position
-	_, err = mp3File.Seek(int64(startPos), io.SeekStart)
+	length, err := getLengthInSeconds(mp3Filepath)
 	if err != nil {
 		return err
 	}
-
-	// read all until EOF
-	temp := make([]byte, endPos-startPos)
-	for i := 0; i < endPos-startPos; {
-		readBytes, err := mp3File.Read(temp)
-		if err == io.EOF {
-			break
-		}
-		i += readBytes
+	endPos := length
+	// set defined pos is not set to -1 end and end is in length of mp3
+	if endInSeconds != -1 && endInSeconds < int(length) {
+		endPos = float64(endInSeconds)
 	}
 
-	// copy item onto the end of the current buffer
-	c.buffer = append(c.buffer, temp...)
+	tempFileName := filepath.Join(os.TempDir(), strconv.Itoa(random.Intn(9999999999999))+".mp3")
+	// ffmpeg -ss 3 -i test16s.mp3 -t 5 -c:a copy out.mp3
+	input := ffmpeg.Input(mp3Filepath, ffmpeg.KwArgs{"ss": startInSeconds})
+	output := input.Output(tempFileName, ffmpeg.KwArgs{"t": int(endPos) - startInSeconds})
 
+	c.streams = append(c.streams, output)
 	return err
 }
 
-func byteOfSecond(sec int, freq int) int {
-	return sec * freq
+func getLengthInSeconds(mp3Filepath string) (float64, error) {
+	outputBuffer := new(bytes.Buffer)
+
+	// ffmpeg -f null - -stats -v quiet -i input.mp3
+	ffmpeg.Input(mp3Filepath, ffmpeg.KwArgs{"v": "quiet", "format": "null", "stats": "", "": ""}).
+		WithErrorOutput(outputBuffer).Run()
+
+	// expected is a multi line output lik this:
+	// size=N/A time=00:00:00.00 bitrate=N/A speed=   0x
+	// size=N/A time=00:17:05.36 bitrate=N/A speed=2.05e+03x
+	// size=N/A time=00:17:39.89 bitrate=N/A speed=2.05e+03x
+	outputString := outputBuffer.String()
+	matches := FFMPEG_STATS_REGEX.FindStringSubmatch(outputString)
+	if len(matches) != 5 {
+		return -1, fmt.Errorf("did not find time in '%s'", outputString)
+	}
+
+	hours, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return -1, err
+	}
+	minutes, err := strconv.Atoi(matches[2])
+	if err != nil {
+		return -1, err
+	}
+	second, err := strconv.Atoi(matches[3])
+	if err != nil {
+		return -1, err
+	}
+	milliseconds, err := strconv.Atoi(matches[4])
+	if err != nil {
+		return -1, err
+	}
+	result := (hours * 60 * 60) + (minutes * 60) + (second)
+
+	return float64(result) + (float64(milliseconds) * 0.01), nil
 }
 
 func getChapterMetadata(path string, start float32, end float32) ([]string, error) {

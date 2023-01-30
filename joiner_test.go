@@ -1,12 +1,10 @@
 package mp3joiner
 
 import (
-	"math/rand"
 	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
-	"time"
 )
 
 var (
@@ -14,7 +12,6 @@ var (
 )
 
 var generatedMP3FilePaths = make([]string, 0)
-var random = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 type SecondsWindow struct {
 	start, end int
@@ -72,10 +69,6 @@ func TestMP3Container_AddSection(t *testing.T) {
 			if err := tt.c.AddSection(tt.args.mp3Filepath, tt.args.startInSeconds, tt.args.endInSeconds); (err != nil) != tt.wantErr {
 				t.Errorf("MP3Container.AddSection() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			actualBufferLength := len(tt.c.buffer)
-			if actualBufferLength != tt.wantResultLength {
-				t.Errorf("MP3Container.AddSection() expected a result length of %d but actual size was %d", tt.wantResultLength, actualBufferLength)
-			}
 		})
 	}
 }
@@ -108,12 +101,22 @@ func TestMP3Container_Persist(t *testing.T) {
 			args: args{
 				path: generateMP3FileName(),
 			},
-			wantErr: false,
+			wantErr: true,
 		}, {
-			name: "positiv test",
+			name: "section test",
 			c: createContainer(t, []SecondsWindow{{
 				start: 1,
 				end:   10,
+			}}),
+			args: args{
+				path: generateMP3FileName(),
+			},
+			wantErr: false,
+		}, {
+			name: "complete file test",
+			c: createContainer(t, []SecondsWindow{{
+				start: 0,
+				end:   -1,
 			}}),
 			args: args{
 				path: generateMP3FileName(),
@@ -125,6 +128,37 @@ func TestMP3Container_Persist(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := tt.c.Persist(tt.args.path); (err != nil) != tt.wantErr {
 				t.Errorf("MP3Container.Persist() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_getLengthInSeconds(t *testing.T) {
+	type args struct {
+		mp3Filepath string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    float64
+		wantErr bool
+	}{
+		{
+			name:    "positive test",
+			args:    args{mp3Filepath: filepath.Join(getMP3TestFolder(t), testFileName)},
+			want:    1059.89,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getLengthInSeconds(tt.args.mp3Filepath)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("getLengthInSeconds() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("getLengthInSeconds() = %v, want %v", got, tt.want)
 			}
 		})
 	}
