@@ -96,22 +96,25 @@ func TestMP3Container_Persist(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "empty MP3 test",
-			c:    createContainer(t, make([]SecondsWindow, 0)),
-			args: args{
-				path: generateMP3FileName(),
-			},
-			wantErr: true,
-		}, {
-			name: "section test",
+			name: "sections test",
 			c: createContainer(t, []SecondsWindow{{
 				start: 1,
-				end:   10,
+				end:   2,
+			}, {
+				start: 1,
+				end:   5,
 			}}),
 			args: args{
 				path: generateMP3FileName(),
 			},
 			wantErr: false,
+		}, {
+			name: "empty MP3 test",
+			c:    createContainer(t, make([]SecondsWindow, 0)),
+			args: args{
+				path: "dummy 1",
+			},
+			wantErr: true,
 		}, {
 			name: "complete file test",
 			c: createContainer(t, []SecondsWindow{{

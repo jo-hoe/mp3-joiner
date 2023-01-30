@@ -1,5 +1,5 @@
-# mp3-joiner
+# MP3 Joiner
 
-```bash
-ffmpeg -v quiet -stats -i input.mp3 -f null - 
-```
+Still work in progess.
+Is intended to allow the merge of MP3 files.
+Honoring chapter meta data.

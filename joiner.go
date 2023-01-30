@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"time"
@@ -38,7 +36,8 @@ func (c *MP3Container) Persist(path string) (err error) {
 	if len(c.streams) < 1 {
 		return fmt.Errorf("no streams to persist")
 	}
-	err = ffmpeg.MergeOutputs(c.streams...).Run()
+	// set 0 video stream and 1 audio stream
+	err = ffmpeg.Concat(c.streams, ffmpeg.KwArgs{"a": 1, "v": 0}).Output(path).Run()
 	return err
 }
 
@@ -59,12 +58,10 @@ func (c *MP3Container) AddSection(mp3Filepath string, startInSeconds int, endInS
 		endPos = float64(endInSeconds)
 	}
 
-	tempFileName := filepath.Join(os.TempDir(), strconv.Itoa(random.Intn(9999999999999))+".mp3")
-	// ffmpeg -ss 3 -i test16s.mp3 -t 5 -c:a copy out.mp3
-	input := ffmpeg.Input(mp3Filepath, ffmpeg.KwArgs{"ss": startInSeconds})
-	output := input.Output(tempFileName, ffmpeg.KwArgs{"t": int(endPos) - startInSeconds})
+	// ffmpeg -ss 3 -t 5 -i input.mp3
+	input := ffmpeg.Input(mp3Filepath, ffmpeg.KwArgs{"ss": startInSeconds, "t": endPos - float64(startInSeconds)})
 
-	c.streams = append(c.streams, output)
+	c.streams = append(c.streams, input)
 	return err
 }
 
