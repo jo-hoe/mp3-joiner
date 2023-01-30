@@ -18,6 +18,14 @@ jobs:
         platform: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.platform }}
     steps:
+    - uses: actions/checkout@v3
+    - name: Run FedericoCarboni/setup-ffmpeg
+      uses: ./
+    - name: Run FedericoCarboni/setup-ffmpeg
+      id: setup-ffmpeg
+      uses: ./
+    - run: ffmpeg -version
+    - run: ffprobe -version
     - name: Install Go
       if: success()
       uses: actions/setup-go@v3
