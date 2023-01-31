@@ -141,5 +141,5 @@ func parseMP3Length(ffmpegStats string) (float64, error) {
 	}
 	result := (hours * 60 * 60) + (minutes * 60) + (second)
 
-	return float64(result) + (float64(milliseconds) * 0.01), nil
+	return float64(result) + (float64(milliseconds) * 0.01), err
 }
