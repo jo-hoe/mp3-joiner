@@ -49,7 +49,3 @@ func (c *MP3Container) AddSection(mp3Filepath string, startInSeconds float64, en
 	c.streams = append(c.streams, input)
 	return err
 }
-
-func mergeSections([]string) []string {
-	return nil
-}

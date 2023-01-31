@@ -12,6 +12,58 @@ var (
 	testFileName = "edgar-allen-poe-the-telltale-heart-original.mp3"
 )
 
+func Test_createTempMetadataFile(t *testing.T) {
+	type args struct {
+		metadata map[string]string
+		chapters []Chapter
+	}
+	tests := []struct {
+		name            string
+		args            args
+		wantFileContent string
+		wantErr         bool
+	}{
+		{
+			name:            "empty test",
+			args:            args{metadata: map[string]string{}, chapters: []Chapter{}},
+			wantFileContent: "",
+			wantErr:         false,
+		}, {
+			name: "positive test",
+			args: args{metadata: map[string]string{"title": "my title"}, chapters: []Chapter{
+				{TimeBase: "1/1", Start: 12, End: 13, Tags: Tags{Title: "my chapter"}},
+			}},
+			wantFileContent: `title=my title
+[CHAPTER]
+TIMEBASE=1/1
+START=12
+END=13
+title=my chapter
+`,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotMetadataFilepath, err := createTempMetadataFile(tt.args.metadata, tt.args.chapters)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("createTempMetadataFile() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			buffer, err := os.ReadFile(gotMetadataFilepath)
+			if err != nil {
+				t.Errorf("could not read file %v", err)
+			}
+
+			result := string(buffer)
+			if result != tt.wantFileContent {
+				t.Errorf("createTempMetadataFile() expected content:\n'%v', actual content:\n'%v'", tt.wantFileContent, result)
+			}
+			os.Remove(gotMetadataFilepath)
+		})
+	}
+}
+
 func TestGetChapterMetadata(t *testing.T) {
 	type args struct {
 		mp3Filepath string

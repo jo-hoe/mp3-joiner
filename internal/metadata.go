@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
@@ -65,9 +67,36 @@ func ffprobe(mp3Filepath string, args ffmpeg.KwArgs, v any) (err error) {
 	return json.Unmarshal([]byte(output), v)
 }
 
-func SetMP3Metadata() error {
+func SetMP3Metadata(mp3Filepath string, metadata map[string]string, chapters []Chapter) error {
 	// https://ffmpeg.org/ffmpeg-formats.html#Metadata-1
 	return nil
+}
+
+func createTempMetadataFile(metadata map[string]string, chapters []Chapter) (metadataFilepath string, err error) {
+	tempFile, err := os.CreateTemp("", "ffmpegMetaData")
+	if err != nil {
+		return "", err
+	}
+	metadataFilepath = tempFile.Name()
+
+	var stringBuilder strings.Builder
+
+	for key, value := range metadata {
+		stringBuilder.WriteString(fmt.Sprintf("%s=%s\n", key, value))
+	}
+
+	if len(chapters) > 0 {
+		for _, chapter := range chapters {
+			stringBuilder.WriteString("[CHAPTER]\n")
+			stringBuilder.WriteString(fmt.Sprintf("TIMEBASE=%s\n", chapter.TimeBase))
+			stringBuilder.WriteString(fmt.Sprintf("START=%d\n", chapter.Start))
+			stringBuilder.WriteString(fmt.Sprintf("END=%d\n", chapter.End))
+			stringBuilder.WriteString(fmt.Sprintf("title=%s\n", chapter.Tags.Title))
+		}
+	}
+
+	_, err = tempFile.WriteString(stringBuilder.String())
+	return metadataFilepath, err
 }
 
 func GetLengthInSeconds(mp3Filepath string) (float64, error) {
