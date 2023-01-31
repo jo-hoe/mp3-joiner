@@ -3,17 +3,13 @@ package mp3joiner
 import (
 	"bytes"
 	"fmt"
-	"math"
-	"math/rand"
 	"regexp"
 	"strconv"
-	"time"
 
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
 var FFMPEG_STATS_REGEX = regexp.MustCompile(`.+time=(?:.*)([0-9]{2,99}):([0-9]{2}):([0-9]{2}).([0-9]{2})`)
-var random = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 type MP3Container struct {
 	streams []*ffmpeg.Stream
@@ -60,7 +56,7 @@ func (c *MP3Container) AddSection(mp3Filepath string, startInSeconds float64, en
 	}
 
 	// ffmpeg -ss 3 -t 5 -i input.mp3
-	input := ffmpeg.Input(mp3Filepath, ffmpeg.KwArgs{"ss": startInSeconds, "t": math.Ceil(endPos - startInSeconds)})
+	input := ffmpeg.Input(mp3Filepath, ffmpeg.KwArgs{"ss": startInSeconds, "t": endPos - startInSeconds})
 
 	c.streams = append(c.streams, input)
 	return err

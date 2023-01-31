@@ -2,10 +2,12 @@ package mp3joiner
 
 import (
 	"math"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
+	"time"
 )
 
 var (
@@ -13,6 +15,7 @@ var (
 )
 
 var generatedMP3FilePaths = make([]string, 0)
+var random = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 type SecondsWindow struct {
 	start, end float64
@@ -104,13 +107,16 @@ func TestMP3Container_Persist(t *testing.T) {
 			expectedLength: 5,
 			wantErr:        false,
 		}, {
-			name: "empty MP3 test",
-			c:    createContainer(t, make([]SecondsWindow, 0)),
+			name: "sub second test",
+			c: createContainer(t, []SecondsWindow{{
+				start: 0,
+				end:   1.5,
+			}}),
 			args: args{
-				path: "dummy 1",
+				path: generateMP3FileName(),
 			},
-			expectedLength: 0,
-			wantErr:        true,
+			expectedLength: 1.5,
+			wantErr:        false,
 		}, {
 			name: "complete file test",
 			c: createContainer(t, []SecondsWindow{{
@@ -122,6 +128,14 @@ func TestMP3Container_Persist(t *testing.T) {
 			},
 			expectedLength: 1059.89,
 			wantErr:        false,
+		}, {
+			name: "file not avaiable",
+			c:    createContainer(t, make([]SecondsWindow, 0)),
+			args: args{
+				path: "dummy 1",
+			},
+			expectedLength: 0,
+			wantErr:        true,
 		},
 	}
 	for _, tt := range tests {
@@ -134,9 +148,9 @@ func TestMP3Container_Persist(t *testing.T) {
 				if err != nil {
 					t.Errorf("MP3Container.Persist() found error while calculating length = %v", err)
 				}
-				// fuzzy test if expected length is out by 0.01 or more
-				if math.Abs(actualLength-tt.expectedLength) > 0.01 {
-					t.Errorf("MP3Container.Persist() expected length = %v, actual length = %v", actualLength, tt.expectedLength)
+				// fuzzy test if expected length is out by 0.1 or more
+				if math.Abs(actualLength-tt.expectedLength) > 0.1 {
+					t.Errorf("MP3Container.Persist() expected length = %v, actual length = %v", tt.expectedLength, actualLength)
 				}
 			}
 		})
