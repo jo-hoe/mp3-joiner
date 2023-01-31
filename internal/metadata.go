@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 
 	ffmpeg "github.com/u2takey/ffmpeg-go"
@@ -18,31 +19,55 @@ type metadata struct {
 	} `json:"format,omitempty"`
 }
 
+type chapters struct {
+	Chapters []Chapter `json:"chapters,omitempty"`
+}
+
+type Chapter struct {
+	Id        int    `json:"id,omitempty"`
+	TimeBase  string `json:"time_base,omitempty"`
+	Start     int    `json:"start,omitempty"`
+	StartTime string `json:"start_time,omitempty"`
+	End       int    `json:"end,omitempty"`
+	EndTime   string `json:"end_time,omitempty"`
+	Tags      Tags   `json:"tags,omitempty"`
+}
+
+type Tags struct {
+	Title string `json:"title,omitempty"`
+}
+
 func GetMP3Metadata(mp3Filepath string) (result map[string]string, err error) {
-	// ffprobe -hide_banner -v 0 -i input.mp3 -show_entries format -of json
-	output, err := ffmpeg.Probe(mp3Filepath, ffmpeg.KwArgs{"hide_banner": "", "v": 0, "show_entries": "format", "of": "json"})
-	if err != nil {
-		return result, err
-	}
-
 	var data metadata
-	if err := json.Unmarshal([]byte(output), &data); err != nil {
-		return result, err
-	} else {
-		result = data.Format.Tags
-	}
-
+	// ffprobe -hide_banner -v 0 -i input.mp3 -print_format json -show_chapters
+	err = ffprobe(mp3Filepath, ffmpeg.KwArgs{"hide_banner": "", "v": 0, "show_entries": "format", "of": "json"}, &data)
+	result = data.Format.Tags
 	return result, err
+}
+
+func GetChapterMetadata(mp3Filepath string) (result []Chapter, err error) {
+	var data chapters
+	// ffprobe -hide_banner -v 0 -i input.mp3 -print_format json -show_chapters
+	err = ffprobe(mp3Filepath, ffmpeg.KwArgs{"hide_banner": "", "v": 0, "print_format": "json", "show_chapters": ""}, &data)
+	result = data.Chapters
+	// sort by start
+	sort.SliceStable(result, func(i, j int) bool {
+		return result[i].Start < result[j].Start
+	})
+	return result, err
+}
+
+func ffprobe(mp3Filepath string, args ffmpeg.KwArgs, v any) (err error) {
+	output, err := ffmpeg.Probe(mp3Filepath, args)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal([]byte(output), v)
 }
 
 func SetMP3Metadata() error {
 	// https://ffmpeg.org/ffmpeg-formats.html#Metadata-1
 	return nil
-}
-
-func getChapterMetadata(path string, start float32, end float32) ([]string, error) {
-	// ffprobe -hide_banner -v 0 -i input.mp3 -print_format json -show_chapters
-	return nil, nil
 }
 
 func GetLengthInSeconds(mp3Filepath string) (float64, error) {

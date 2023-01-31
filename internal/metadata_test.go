@@ -12,6 +12,54 @@ var (
 	testFileName = "edgar-allen-poe-the-telltale-heart-original.mp3"
 )
 
+func TestGetChapterMetadata(t *testing.T) {
+	type args struct {
+		mp3Filepath string
+	}
+	tests := []struct {
+		name            string
+		args            args
+		firstItem       Chapter
+		numberOfResults int
+		wantErr         bool
+	}{
+		{
+			name:            "positive test",
+			args:            args{mp3Filepath: filepath.Join(getMP3TestFolder(t), testFileName)},
+			numberOfResults: 4,
+			firstItem: Chapter{
+				Id:        2,
+				TimeBase:  "1/1000",
+				Start:     0,
+				StartTime: "0.000000",
+				End:       17000,
+				EndTime:   "17.000000",
+				Tags: Tags{
+					Title: "LibriVox Introduction",
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotResult, err := GetChapterMetadata(tt.args.mp3Filepath)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetChapterMetadata() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.numberOfResults != len(gotResult) {
+				t.Errorf("GetChapterMetadata() found %v elements, want %v elements", len(gotResult), tt.numberOfResults)
+			}
+			if tt.numberOfResults > 0 {
+				if !reflect.DeepEqual(gotResult[0], tt.firstItem) {
+					t.Errorf("GetChapterMetadata() = %v, want %v", gotResult[0], tt.firstItem)
+				}
+			}
+		})
+	}
+}
+
 func TestGetMP3Metadata(t *testing.T) {
 	type args struct {
 		mp3Filepath string
