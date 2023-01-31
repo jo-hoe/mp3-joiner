@@ -56,6 +56,17 @@ func TestMP3Container_AddSection(t *testing.T) {
 			wantErr:      true,
 			streamsCount: 0,
 		},
+		{
+			name: "non-existing file",
+			c:    NewMP3(),
+			args: args{
+				mp3Filepath:    "dummy",
+				startInSeconds: 0,
+				endInSeconds:   1,
+			},
+			wantErr:      true,
+			streamsCount: 0,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -129,7 +140,7 @@ func TestMP3Container_Persist(t *testing.T) {
 			expectedLength: 1059.89,
 			wantErr:        false,
 		}, {
-			name: "file not avaiable",
+			name: "file not available",
 			c:    createContainer(t, make([]SecondsWindow, 0)),
 			args: args{
 				path: "dummy 1",
