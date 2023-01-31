@@ -35,7 +35,7 @@ func TestMP3Container_AddSection(t *testing.T) {
 		streamsCount int
 	}{
 		{
-			name: "cut first",
+			name: "positive test",
 			c:    NewMP3(),
 			args: args{
 				mp3Filepath:    filepath.Join(getMP3TestFolder(t), testFileName),
@@ -217,7 +217,7 @@ func Test_parseMP3Length(t *testing.T) {
 			want:    7322.02,
 			wantErr: false,
 		}, {
-			name: "positive test",
+			name: "not parseable test",
 			args: args{
 				ffmpegStats: "size=N/A time=xx:02:02.02 bitrate=N/A speed=2.05e+03x",
 			},
