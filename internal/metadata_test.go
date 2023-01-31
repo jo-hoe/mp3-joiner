@@ -4,12 +4,60 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
 var (
 	testFileName = "edgar-allen-poe-the-telltale-heart-original.mp3"
 )
+
+func TestGetMP3Metadata(t *testing.T) {
+	type args struct {
+		mp3Filepath string
+	}
+	tests := []struct {
+		name       string
+		args       args
+		wantResult map[string]string
+		wantErr    bool
+	}{
+		{
+			name: "positive test",
+			args: args{
+				mp3Filepath: filepath.Join(getMP3TestFolder(t), testFileName),
+			},
+			wantResult: map[string]string{
+				"ID3v1 Comment": "Read by John Doyle",
+				"album":         "Librivox Short Ghost and Horror Story Collection Vol. 009",
+				"genre":         "Speech",
+				"title":         "The Tell-Tale Heart",
+				"artist":        "Edgar Allen Poe",
+				"track":         "13/16",
+			},
+			wantErr: false,
+		}, {
+			name: "non existing file",
+			args: args{
+				mp3Filepath: "",
+			},
+			wantResult: nil,
+			wantErr:    true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotResult, err := GetMP3Metadata(tt.args.mp3Filepath)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetMP3Metadata() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(gotResult, tt.wantResult) {
+				t.Errorf("GetMP3Metadata() = %v, want %v", gotResult, tt.wantResult)
+			}
+		})
+	}
+}
 
 func Test_GetLengthInSeconds(t *testing.T) {
 	type args struct {

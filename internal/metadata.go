@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -11,8 +12,27 @@ import (
 
 var FFMPEG_STATS_REGEX = regexp.MustCompile(`.+time=(?:.*)([0-9]{2,99}):([0-9]{2}):([0-9]{2}).([0-9]{2})`)
 
-func GetMP3Metadata() {
+type metadata struct {
+	Format struct {
+		Tags map[string]string `json:"tags,omitempty"`
+	} `json:"format,omitempty"`
+}
+
+func GetMP3Metadata(mp3Filepath string) (result map[string]string, err error) {
 	// ffprobe -hide_banner -v 0 -i input.mp3 -show_entries format -of json
+	output, err := ffmpeg.Probe(mp3Filepath, ffmpeg.KwArgs{"hide_banner": "", "v": 0, "show_entries": "format", "of": "json"})
+	if err != nil {
+		return result, err
+	}
+
+	var data metadata
+	if err := json.Unmarshal([]byte(output), &data); err != nil {
+		return result, err
+	} else {
+		result = data.Format.Tags
+	}
+
+	return result, err
 }
 
 func SetMP3Metadata() error {
