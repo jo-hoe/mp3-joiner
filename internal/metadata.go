@@ -12,11 +12,17 @@ import (
 var FFMPEG_STATS_REGEX = regexp.MustCompile(`.+time=(?:.*)([0-9]{2,99}):([0-9]{2}):([0-9]{2}).([0-9]{2})`)
 
 func GetMP3Metadata() {
-
+	// ffprobe -hide_banner -v 0 -i input.mp3 -show_entries format -of json
 }
 
 func SetMP3Metadata() error {
+	// https://ffmpeg.org/ffmpeg-formats.html#Metadata-1
 	return nil
+}
+
+func getChapterMetadata(path string, start float32, end float32) ([]string, error) {
+	// ffprobe -hide_banner -v 0 -i d:\git\mp3-joiner\test\mp3\edgar-allen-poe-the-telltale-heart-original.mp3 -print_format json -show_chapters
+	return nil, nil
 }
 
 func GetLengthInSeconds(mp3Filepath string) (float64, error) {
@@ -62,12 +68,4 @@ func parseMP3Length(ffmpegStats string) (float64, error) {
 	result := (hours * 60 * 60) + (minutes * 60) + (second)
 
 	return float64(result) + (float64(milliseconds) * 0.01), nil
-}
-
-func getChapterMetadata(path string, start float32, end float32) ([]string, error) {
-	return nil, nil
-}
-
-func mergeSections([]string) []string {
-	return nil
 }
