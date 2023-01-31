@@ -77,6 +77,7 @@ func createTempMetadataFile(metadata map[string]string, chapters []Chapter) (met
 	if err != nil {
 		return "", err
 	}
+        // TODO: close temp file here
 	metadataFilepath = tempFile.Name()
 
 	var stringBuilder strings.Builder
