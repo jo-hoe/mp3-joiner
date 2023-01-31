@@ -3,6 +3,7 @@ package mp3joiner
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"math/rand"
 	"regexp"
 	"strconv"
@@ -41,7 +42,7 @@ func (c *MP3Container) Persist(path string) (err error) {
 	return err
 }
 
-func (c *MP3Container) AddSection(mp3Filepath string, startInSeconds int, endInSeconds int) (err error) {
+func (c *MP3Container) AddSection(mp3Filepath string, startInSeconds float64, endInSeconds float64) (err error) {
 	// input validation test
 	if endInSeconds != -1 && startInSeconds > endInSeconds {
 		return fmt.Errorf("start %v set after end %v", startInSeconds, endInSeconds)
@@ -54,12 +55,12 @@ func (c *MP3Container) AddSection(mp3Filepath string, startInSeconds int, endInS
 	}
 	endPos := length
 	// set defined pos is not set to -1 end and end is in length of mp3
-	if endInSeconds != -1 && endInSeconds < int(length) {
+	if endInSeconds != -1 && endInSeconds < length {
 		endPos = float64(endInSeconds)
 	}
 
 	// ffmpeg -ss 3 -t 5 -i input.mp3
-	input := ffmpeg.Input(mp3Filepath, ffmpeg.KwArgs{"ss": startInSeconds, "t": endPos - float64(startInSeconds)})
+	input := ffmpeg.Input(mp3Filepath, ffmpeg.KwArgs{"ss": startInSeconds, "t": math.Ceil(endPos - startInSeconds)})
 
 	c.streams = append(c.streams, input)
 	return err
