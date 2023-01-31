@@ -21,7 +21,7 @@ func SetMP3Metadata() error {
 }
 
 func getChapterMetadata(path string, start float32, end float32) ([]string, error) {
-	// ffprobe -hide_banner -v 0 -i d:\git\mp3-joiner\test\mp3\edgar-allen-poe-the-telltale-heart-original.mp3 -print_format json -show_chapters
+	// ffprobe -hide_banner -v 0 -i input.mp3 -print_format json -show_chapters
 	return nil, nil
 }
 
