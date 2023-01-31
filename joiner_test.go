@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/jo-hoe/mp3-joiner/internal"
 )
 
 var (
@@ -155,7 +157,7 @@ func TestMP3Container_Persist(t *testing.T) {
 				t.Errorf("MP3Container.Persist() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !tt.wantErr {
-				actualLength, err := GetLengthInSeconds(tt.args.path)
+				actualLength, err := internal.GetLengthInSeconds(tt.args.path)
 				if err != nil {
 					t.Errorf("MP3Container.Persist() found error while calculating length = %v", err)
 				}
@@ -163,77 +165,6 @@ func TestMP3Container_Persist(t *testing.T) {
 				if math.Abs(actualLength-tt.expectedLength) > 0.1 {
 					t.Errorf("MP3Container.Persist() expected length = %v, actual length = %v", tt.expectedLength, actualLength)
 				}
-			}
-		})
-	}
-}
-
-func Test_GetLengthInSeconds(t *testing.T) {
-	type args struct {
-		mp3Filepath string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    float64
-		wantErr bool
-	}{
-		{
-			name:    "positive test",
-			args:    args{mp3Filepath: filepath.Join(getMP3TestFolder(t), testFileName)},
-			want:    1059.89,
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetLengthInSeconds(tt.args.mp3Filepath)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("getLengthInSeconds() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if math.Abs(tt.want-got) > 0.01 {
-				t.Errorf("getLengthInSeconds() more than 0.01 apart = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_parseMP3Length(t *testing.T) {
-	type args struct {
-		ffmpegStats string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    float64
-		wantErr bool
-	}{
-		{
-			name: "positive test",
-			args: args{
-				ffmpegStats: "size=N/A time=02:02:02.02 bitrate=N/A speed=2.05e+03x",
-			},
-			want:    7322.02,
-			wantErr: false,
-		}, {
-			name: "positive test",
-			args: args{
-				ffmpegStats: "size=N/A time=xx:02:02.02 bitrate=N/A speed=2.05e+03x",
-			},
-			want:    -1,
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseMP3Length(tt.args.ffmpegStats)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("parseMP3Length() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("parseMP3Length() = %v, want %v", got, tt.want)
 			}
 		})
 	}
