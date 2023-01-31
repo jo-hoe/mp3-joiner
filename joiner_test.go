@@ -155,7 +155,7 @@ func TestMP3Container_Persist(t *testing.T) {
 				t.Errorf("MP3Container.Persist() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !tt.wantErr {
-				actualLength, err := getLengthInSeconds(tt.args.path)
+				actualLength, err := GetLengthInSeconds(tt.args.path)
 				if err != nil {
 					t.Errorf("MP3Container.Persist() found error while calculating length = %v", err)
 				}
@@ -168,7 +168,7 @@ func TestMP3Container_Persist(t *testing.T) {
 	}
 }
 
-func Test_getLengthInSeconds(t *testing.T) {
+func Test_GetLengthInSeconds(t *testing.T) {
 	type args struct {
 		mp3Filepath string
 	}
@@ -187,7 +187,7 @@ func Test_getLengthInSeconds(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getLengthInSeconds(tt.args.mp3Filepath)
+			got, err := GetLengthInSeconds(tt.args.mp3Filepath)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getLengthInSeconds() error = %v, wantErr %v", err, tt.wantErr)
 				return

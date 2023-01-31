@@ -45,7 +45,7 @@ func (c *MP3Container) AddSection(mp3Filepath string, startInSeconds float64, en
 	}
 
 	// set end to last position
-	length, err := getLengthInSeconds(mp3Filepath)
+	length, err := GetLengthInSeconds(mp3Filepath)
 	if err != nil {
 		return err
 	}
@@ -62,21 +62,28 @@ func (c *MP3Container) AddSection(mp3Filepath string, startInSeconds float64, en
 	return err
 }
 
-func getLengthInSeconds(mp3Filepath string) (float64, error) {
+func GetLengthInSeconds(mp3Filepath string) (float64, error) {
+	return parseMP3Length(getFFmpegStats(mp3Filepath))
+}
+
+func getFFmpegStats(mp3Filepath string) string {
 	outputBuffer := new(bytes.Buffer)
 
 	// ffmpeg -f null - -stats -v quiet -i input.mp3
 	ffmpeg.Input(mp3Filepath, ffmpeg.KwArgs{"v": "quiet", "format": "null", "stats": "", "": ""}).
 		WithErrorOutput(outputBuffer).Run()
 
+	return outputBuffer.String()
+}
+
+func parseMP3Length(ffmpegStats string) (float64, error) {
 	// expected is a multi line output lik this:
 	// size=N/A time=00:00:00.00 bitrate=N/A speed=   0x
 	// size=N/A time=00:17:05.36 bitrate=N/A speed=2.05e+03x
 	// size=N/A time=00:17:39.89 bitrate=N/A speed=2.05e+03x
-	outputString := outputBuffer.String()
-	matches := FFMPEG_STATS_REGEX.FindStringSubmatch(outputString)
+	matches := FFMPEG_STATS_REGEX.FindStringSubmatch(ffmpegStats)
 	if len(matches) != 5 {
-		return -1, fmt.Errorf("did not find time in '%s'", outputString)
+		return -1, fmt.Errorf("did not find time in '%s'", ffmpegStats)
 	}
 
 	hours, err := strconv.Atoi(matches[1])
