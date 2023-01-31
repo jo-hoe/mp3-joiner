@@ -37,7 +37,7 @@ func TestMP3Container_AddSection(t *testing.T) {
 		streamsCount int
 	}{
 		{
-			name: "cut first",
+			name: "positive test",
 			c:    NewMP3(),
 			args: args{
 				mp3Filepath:    filepath.Join(getMP3TestFolder(t), testFileName),

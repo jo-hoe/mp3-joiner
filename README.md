@@ -10,3 +10,5 @@
 Still work in progess.
 Is intended to allow the merge of MP3 files.
 Honoring chapter meta data.
+
+[How to apply chapters](https://dev.to/montekaka/add-chapter-markers-to-podcast-audio-using-ffmpeg-3c46)
