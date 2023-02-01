@@ -68,11 +68,16 @@ func ffprobe(mp3Filepath string, args ffmpeg.KwArgs, v any) (err error) {
 }
 
 func SetMP3Metadata(mp3Filepath string, metadata map[string]string, chapters []Chapter) error {
-	// https://ffmpeg.org/ffmpeg-formats.html#Metadata-1
+	// ffmpeg -i INPUT -i FFMETADATAFILE -map_metadata 1 -codec copy OUTPUT
 	return nil
 }
 
+// Creates an meta data file in the temp folder.
+// This file format is described here:
+// https://ffmpeg.org/ffmpeg-formats.html#Metadata-1
 func createTempMetadataFile(metadata map[string]string, chapters []Chapter) (metadataFilepath string, err error) {
+	// TODO: The header is a ‘;FFMETADATA’ string, followed by a version number (now 1).
+	// TODO: Metadata keys or values containing special characters (‘=’, ‘;’, ‘#’, ‘\’ and a newline) must be escaped with a backslash ‘\’.
 	tempFile, err := os.CreateTemp("", "ffmpegMetaData")
 	if err != nil {
 		return "", err
@@ -96,6 +101,7 @@ func createTempMetadataFile(metadata map[string]string, chapters []Chapter) (met
 		}
 	}
 
+	// TODO: A section starts with the section name in uppercase (i.e. STREAM or CHAPTER) in brackets (‘[’, ‘]’) and ends with next section or end of file.
 	_, err = tempFile.WriteString(stringBuilder.String())
 	return metadataFilepath, err
 }
