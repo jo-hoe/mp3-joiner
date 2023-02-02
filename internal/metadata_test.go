@@ -26,7 +26,7 @@ func Test_createTempMetadataFile(t *testing.T) {
 		{
 			name:            "empty test",
 			args:            args{metadata: map[string]string{}, chapters: []Chapter{}},
-			wantFileContent: ";FFMETADATA\n",
+			wantFileContent: ";FFMETADATA",
 			wantErr:         false,
 		}, {
 			name: "positive test",
@@ -39,7 +39,7 @@ func Test_createTempMetadataFile(t *testing.T) {
 				"TIMEBASE=1/1\n" +
 				"START=12\n" +
 				"END=13\n" +
-				"title=my chapter\n",
+				"title=my chapter",
 			wantErr: false,
 		},
 	}
@@ -174,6 +174,11 @@ func Test_GetLengthInSeconds(t *testing.T) {
 			args:    args{mp3Filepath: filepath.Join(getMP3TestFolder(t), testFileName)},
 			want:    1059.89,
 			wantErr: false,
+		},{
+			name:    "non existing file",
+			args:    args{mp3Filepath: "nofile"},
+			want:    -1,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {

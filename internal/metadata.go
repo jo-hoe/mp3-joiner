@@ -87,23 +87,22 @@ func createTempMetadataFile(metadata map[string]string, chapters []Chapter) (met
 	metadataFilepath = tempFile.Name()
 
 	var stringBuilder strings.Builder
-	stringBuilder.WriteString(";FFMETADATA\n")
+	stringBuilder.WriteString(";FFMETADATA")
 
 	for key, value := range metadata {
-		stringBuilder.WriteString(fmt.Sprintf("%s=%s\n", sanitizeMetadata(key), sanitizeMetadata(value)))
+		stringBuilder.WriteString(fmt.Sprintf("\n%s=%s", sanitizeMetadata(key), sanitizeMetadata(value)))
 	}
 
 	if len(chapters) > 0 {
 		for _, chapter := range chapters {
-			stringBuilder.WriteString("[CHAPTER]\n")
-			stringBuilder.WriteString(fmt.Sprintf("TIMEBASE=%s\n", sanitizeMetadata(chapter.TimeBase)))
-			stringBuilder.WriteString(fmt.Sprintf("START=%d\n", chapter.Start))
-			stringBuilder.WriteString(fmt.Sprintf("END=%d\n", chapter.End))
-			stringBuilder.WriteString(fmt.Sprintf("title=%s\n", sanitizeMetadata(chapter.Tags.Title)))
+			stringBuilder.WriteString("\n[CHAPTER]")
+			stringBuilder.WriteString(fmt.Sprintf("\nTIMEBASE=%s", sanitizeMetadata(chapter.TimeBase)))
+			stringBuilder.WriteString(fmt.Sprintf("\nSTART=%d", chapter.Start))
+			stringBuilder.WriteString(fmt.Sprintf("\nEND=%d", chapter.End))
+			stringBuilder.WriteString(fmt.Sprintf("\ntitle=%s", sanitizeMetadata(chapter.Tags.Title)))
 		}
 	}
 
-	// TODO: A section starts with the section name in uppercase (i.e. STREAM or CHAPTER) in brackets (‘[’, ‘]’) and ends with next section or end of file.
 	_, err = tempFile.WriteString(stringBuilder.String())
 	return metadataFilepath, err
 }
