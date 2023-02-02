@@ -87,13 +87,16 @@ func TestMP3Container_Persist(t *testing.T) {
 		for _, filePath := range generatedMP3FilePaths {
 			err := os.Remove(filePath)
 			if err != nil {
-				t.Errorf("Could not deleted file %s", filePath)
+				t.Errorf("could not deleted file %s", filePath)
 			}
 		}
 		generatedMP3FilePaths = make([]string, 0)
 	})
 	container := NewMP3()
-	container.AddSection(filepath.Join(getMP3TestFolder(t), testFileName), 0, 5)
+	err := container.AddSection(filepath.Join(getMP3TestFolder(t), testFileName), 0, 5)
+	if err != nil {
+		t.Errorf("could not add section %v", err)
+	}
 
 	type args struct {
 		path string
@@ -189,7 +192,10 @@ func createContainer(t *testing.T, windows []SecondsWindow) *MP3Container {
 	container := NewMP3()
 
 	for _, window := range windows {
-		container.AddSection(filepath.Join(getMP3TestFolder(t), testFileName), window.start, window.end)
+		err := container.AddSection(filepath.Join(getMP3TestFolder(t), testFileName), window.start, window.end)
+		if err != nil {
+			t.Errorf("could not add section %v", err)
+		}
 	}
 
 	return container

@@ -99,18 +99,23 @@ func createTempMetadataFile(metadata map[string]string, chapters []Chapter) (met
 	return metadataFilepath, err
 }
 
-func GetLengthInSeconds(mp3Filepath string) (float64, error) {
-	return parseMP3Length(getFFmpegStats(mp3Filepath))
+func GetLengthInSeconds(mp3Filepath string) (result float64, err error) {
+	output, err := getFFmpegStats(mp3Filepath)
+	if err != nil {
+		return -1, err
+	}
+
+	return parseMP3Length(output)
 }
 
-func getFFmpegStats(mp3Filepath string) string {
+func getFFmpegStats(mp3Filepath string) (output string, err error) {
 	outputBuffer := new(bytes.Buffer)
 
 	// ffmpeg -f null - -stats -v quiet -i input.mp3
-	ffmpeg.Input(mp3Filepath, ffmpeg.KwArgs{"v": "quiet", "format": "null", "stats": "", "": ""}).
+	err = ffmpeg.Input(mp3Filepath, ffmpeg.KwArgs{"v": "quiet", "format": "null", "stats": "", "": ""}).
 		WithErrorOutput(outputBuffer).Run()
 
-	return outputBuffer.String()
+	return outputBuffer.String(), err
 }
 
 func parseMP3Length(ffmpegStats string) (float64, error) {

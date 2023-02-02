@@ -12,3 +12,21 @@ Is intended to allow the merge of MP3 files.
 Honoring chapter meta data.
 
 [How to apply chapters](https://dev.to/montekaka/add-chapter-markers-to-podcast-audio-using-ffmpeg-3c46)
+
+## Linting
+
+Project used `golangci-lint` for linting.
+
+### Installation
+
+<https://golangci-lint.run/usage/install/>
+
+### Execution
+
+Run the linting locally by executing
+
+```cli
+golangci-lint run ./...
+```
+
+in the working directory
