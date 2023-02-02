@@ -13,6 +13,7 @@ import (
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
+var ILLEGAL_METADATA_CHARATERS = regexp.MustCompile(`(#|;|=|\\)`)
 var FFMPEG_STATS_REGEX = regexp.MustCompile(`.+time=(?:.*)([0-9]{2,99}):([0-9]{2}):([0-9]{2}).([0-9]{2})`)
 
 type metadata struct {
@@ -76,34 +77,56 @@ func SetMP3Metadata(mp3Filepath string, metadata map[string]string, chapters []C
 // This file format is described here:
 // https://ffmpeg.org/ffmpeg-formats.html#Metadata-1
 func createTempMetadataFile(metadata map[string]string, chapters []Chapter) (metadataFilepath string, err error) {
-	// TODO: The header is a ‘;FFMETADATA’ string, followed by a version number (now 1).
-	// TODO: Metadata keys or values containing special characters (‘=’, ‘;’, ‘#’, ‘\’ and a newline) must be escaped with a backslash ‘\’.
 	tempFile, err := os.CreateTemp("", "ffmpegMetaData")
 	if err != nil {
 		return "", err
 	}
-        // TODO: close temp file here
+	defer func() {
+		err = tempFile.Close()
+	}()
 	metadataFilepath = tempFile.Name()
 
 	var stringBuilder strings.Builder
+	stringBuilder.WriteString(";FFMETADATA\n")
 
 	for key, value := range metadata {
-		stringBuilder.WriteString(fmt.Sprintf("%s=%s\n", key, value))
+		stringBuilder.WriteString(fmt.Sprintf("%s=%s\n", sanitizeMetadata(key), sanitizeMetadata(value)))
 	}
 
 	if len(chapters) > 0 {
 		for _, chapter := range chapters {
 			stringBuilder.WriteString("[CHAPTER]\n")
-			stringBuilder.WriteString(fmt.Sprintf("TIMEBASE=%s\n", chapter.TimeBase))
+			stringBuilder.WriteString(fmt.Sprintf("TIMEBASE=%s\n", sanitizeMetadata(chapter.TimeBase)))
 			stringBuilder.WriteString(fmt.Sprintf("START=%d\n", chapter.Start))
 			stringBuilder.WriteString(fmt.Sprintf("END=%d\n", chapter.End))
-			stringBuilder.WriteString(fmt.Sprintf("title=%s\n", chapter.Tags.Title))
+			stringBuilder.WriteString(fmt.Sprintf("title=%s\n", sanitizeMetadata(chapter.Tags.Title)))
 		}
 	}
 
 	// TODO: A section starts with the section name in uppercase (i.e. STREAM or CHAPTER) in brackets (‘[’, ‘]’) and ends with next section or end of file.
 	_, err = tempFile.WriteString(stringBuilder.String())
 	return metadataFilepath, err
+}
+
+// Metadata keys or values containing special characters
+// (‘=’, ‘;’, ‘#’, ‘\’ and a newline) will escaped with a
+// backslash ‘\’.
+func sanitizeMetadata(input string) (output string) {
+	// make string "unescaped" not efficent but quick to implement
+	// better would be to look ahead and look behind chars to escape
+	// and only handle these characters
+	output = strings.Replace(input, "\\\\", "\\", -1)
+	output = strings.Replace(output, "\\=", "=", -1)
+	output = strings.Replace(output, "\\;", ";", -1)
+	output = strings.Replace(output, "\\#", "#", -1)
+
+	// escape complete string
+	matches := ILLEGAL_METADATA_CHARATERS.FindAllStringIndex(output, -1)
+	for i := len(matches) - 1; i >= 0; i-- {
+		output = output[:matches[i][0]] + "\\" + output[matches[i][0]:]
+	}
+
+	return output
 }
 
 func GetLengthInSeconds(mp3Filepath string) (result float64, err error) {

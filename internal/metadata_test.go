@@ -26,14 +26,15 @@ func Test_createTempMetadataFile(t *testing.T) {
 		{
 			name:            "empty test",
 			args:            args{metadata: map[string]string{}, chapters: []Chapter{}},
-			wantFileContent: "",
+			wantFileContent: ";FFMETADATA\n",
 			wantErr:         false,
 		}, {
 			name: "positive test",
 			args: args{metadata: map[string]string{"title": "my title"}, chapters: []Chapter{
 				{TimeBase: "1/1", Start: 12, End: 13, Tags: Tags{Title: "my chapter"}},
 			}},
-			wantFileContent: `title=my title
+			wantFileContent: `;FFMETADATA
+title=my title
 [CHAPTER]
 TIMEBASE=1/1
 START=12
@@ -225,6 +226,38 @@ func Test_parseMP3Length(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("parseMP3Length() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_sanitizeMetadata(t *testing.T) {
+	type args struct {
+		input string
+	}
+	tests := []struct {
+		name       string
+		args       args
+		wantOutput string
+	}{
+		{
+			name: "Escape",
+			args: args{
+				input: "= ; # \\",
+			},
+			wantOutput: "\\= \\; \\# \\\\",
+		}, {
+			name: "Leave alone already escaped characters",
+			args: args{
+				input: "\\= \\; \\# \\\\",
+			},
+			wantOutput: "\\= \\; \\# \\\\",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if gotOutput := sanitizeMetadata(tt.args.input); gotOutput != tt.wantOutput {
+				t.Errorf("sanitizeMetadata() = %v, want %v", gotOutput, tt.wantOutput)
 			}
 		})
 	}
