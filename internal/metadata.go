@@ -82,7 +82,9 @@ func createTempMetadataFile(metadata map[string]string, chapters []Chapter) (met
 		return "", err
 	}
 	defer func() {
-		err = tempFile.Close()
+		if _, checkerr := os.Stat(tempFile.Name()); checkerr == nil {
+			err = tempFile.Close()
+		}
 	}()
 	metadataFilepath = tempFile.Name()
 
