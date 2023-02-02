@@ -4,17 +4,22 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
+	"math/rand"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
 var ILLEGAL_METADATA_CHARATERS = regexp.MustCompile(`(#|;|=|\\)`)
 var FFMPEG_STATS_REGEX = regexp.MustCompile(`.+time=(?:.*)([0-9]{2,99}):([0-9]{2}):([0-9]{2}).([0-9]{2})`)
+var random = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 type metadata struct {
 	Format struct {
@@ -68,9 +73,26 @@ func ffprobe(mp3Filepath string, args ffmpeg.KwArgs, v any) (err error) {
 	return json.Unmarshal([]byte(output), v)
 }
 
-func SetMP3Metadata(mp3Filepath string, metadata map[string]string, chapters []Chapter) error {
+func SetMetadata(mp3Filepath string, metadata map[string]string, chapters []Chapter) (err error) {
+	tempMetadataFile, err := createTempMetadataFile(metadata, chapters)
+	if err != nil {
+		return err
+	}
+
+	tempFile := filepath.Join(os.TempDir(), strconv.Itoa(random.Intn(9999999999999))+".mp3")
 	// ffmpeg -i INPUT -i FFMETADATAFILE -map_metadata 1 -codec copy OUTPUT
-	return nil
+	err = ffmpeg.Input(mp3Filepath).
+		Output(tempFile, ffmpeg.KwArgs{"i": tempMetadataFile, "map_metadata": "1", "codec": "copy"}).Run()
+	errRemove := os.Remove(tempFile)
+	if err != nil {
+		log.Printf("could not delete temp file %s", errRemove)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return MoveFile(tempMetadataFile, mp3Filepath)
 }
 
 // Creates an meta data file in the temp folder.

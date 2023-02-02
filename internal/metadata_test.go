@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -9,7 +10,7 @@ import (
 )
 
 var (
-	testFileName = "edgar-allen-poe-the-telltale-heart-original.mp3"
+	TEST_FILENAME = "edgar-allen-poe-the-telltale-heart-original.mp3"
 )
 
 func Test_createTempMetadataFile(t *testing.T) {
@@ -77,7 +78,7 @@ func TestGetChapterMetadata(t *testing.T) {
 	}{
 		{
 			name:            "positive test",
-			args:            args{mp3Filepath: filepath.Join(getMP3TestFolder(t), testFileName)},
+			args:            args{mp3Filepath: filepath.Join(getMP3TestFolder(t), TEST_FILENAME)},
 			numberOfResults: 4,
 			firstItem: Chapter{
 				Id:        2,
@@ -125,7 +126,7 @@ func TestGetMP3Metadata(t *testing.T) {
 		{
 			name: "positive test",
 			args: args{
-				mp3Filepath: filepath.Join(getMP3TestFolder(t), testFileName),
+				mp3Filepath: filepath.Join(getMP3TestFolder(t), TEST_FILENAME),
 			},
 			wantResult: map[string]string{
 				"ID3v1 Comment": "Read by John Doyle",
@@ -171,10 +172,10 @@ func Test_GetLengthInSeconds(t *testing.T) {
 	}{
 		{
 			name:    "positive test",
-			args:    args{mp3Filepath: filepath.Join(getMP3TestFolder(t), testFileName)},
+			args:    args{mp3Filepath: filepath.Join(getMP3TestFolder(t), TEST_FILENAME)},
 			want:    1059.89,
 			wantErr: false,
-		},{
+		}, {
 			name:    "non existing file",
 			args:    args{mp3Filepath: "nofile"},
 			want:    -1,
@@ -267,6 +268,70 @@ func Test_sanitizeMetadata(t *testing.T) {
 	}
 }
 
+func TestSetMetadata(t *testing.T) {
+	testFile := filepath.Join(os.TempDir(), TEST_FILENAME)
+	err := copy(filepath.Join(getMP3TestFolder(t), TEST_FILENAME), testFile)
+	checkErr(err, "could not create temp file", t)
+
+	chapterMetaData, err := GetChapterMetadata(testFile)
+	if err != nil {
+		t.Errorf("could not create temp file %v", err)
+	}
+	metaData, err := GetMP3Metadata(testFile)
+	if err != nil {
+		t.Errorf("could not create temp file %v", err)
+	}
+
+	type args struct {
+		mp3Filepath string
+		metadata    map[string]string
+		chapters    []Chapter
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "positive test",
+			args: args{
+				mp3Filepath: testFile,
+				metadata:    metaData,
+				chapters:    chapterMetaData,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := SetMetadata(tt.args.mp3Filepath, tt.args.metadata, tt.args.chapters); (err != nil) != tt.wantErr {
+				t.Errorf("SetMetadata() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantErr == false {
+				newMetaData, err := GetMP3Metadata(testFile)
+				if err != nil {
+					t.Errorf("could not read metadata %v", err)
+				}
+				if !reflect.DeepEqual(newMetaData, metaData) {
+					t.Errorf("not equal metadata = %v, want %v", newMetaData, metaData)
+				}
+
+				newChapterData, err := GetChapterMetadata(testFile)
+				if err != nil {
+					t.Errorf("could not read chapter data %v", err)
+				}
+				if !reflect.DeepEqual(newChapterData, chapterMetaData) {
+					t.Errorf("not equal chapters = %v, want %v", newChapterData, chapterMetaData)
+				}
+			}
+		})
+	}
+	err = os.Remove(testFile)
+	if err != nil {
+		t.Errorf("could not delete file %v", err)
+	}
+}
+
 func getMP3TestFolder(t *testing.T) string {
 	// get test folder
 	testFileFolder, err := os.Getwd()
@@ -274,4 +339,20 @@ func getMP3TestFolder(t *testing.T) string {
 		t.Error(err)
 	}
 	return filepath.Join(filepath.Dir(testFileFolder), "test", "mp3")
+}
+
+func checkErr(err error, error_prefix string, t *testing.T) {
+	if err != nil {
+		t.Errorf(fmt.Sprintf("%s '%v'", error_prefix, err))
+	}
+}
+
+func copy(src string, dst string) error {
+	// Read all content of src to data, may cause OOM for a large file.
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	// Write data to dst
+	return os.WriteFile(dst, data, 0644)
 }
