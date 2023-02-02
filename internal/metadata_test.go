@@ -33,14 +33,13 @@ func Test_createTempMetadataFile(t *testing.T) {
 			args: args{metadata: map[string]string{"title": "my title"}, chapters: []Chapter{
 				{TimeBase: "1/1", Start: 12, End: 13, Tags: Tags{Title: "my chapter"}},
 			}},
-			wantFileContent: `;FFMETADATA
-title=my title
-[CHAPTER]
-TIMEBASE=1/1
-START=12
-END=13
-title=my chapter
-`,
+			wantFileContent: ";FFMETADATA\n" +
+				"title=my title\n" +
+				"[CHAPTER]\n" +
+				"TIMEBASE=1/1\n" +
+				"START=12\n" +
+				"END=13\n" +
+				"title=my chapter\n",
 			wantErr: false,
 		},
 	}
