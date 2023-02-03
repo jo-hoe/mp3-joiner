@@ -81,7 +81,6 @@ func TestGetChapterMetadata(t *testing.T) {
 			args:            args{mp3Filepath: filepath.Join(getMP3TestFolder(t), TEST_FILENAME)},
 			numberOfResults: 4,
 			firstItem: Chapter{
-				Id:        2,
 				TimeBase:  "1/1000",
 				Start:     0,
 				StartTime: "0.000000",

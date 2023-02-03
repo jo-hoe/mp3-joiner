@@ -32,7 +32,6 @@ type chapters struct {
 }
 
 type Chapter struct {
-	Id        int    `json:"id,omitempty"`
 	TimeBase  string `json:"time_base,omitempty"`
 	Start     int    `json:"start,omitempty"`
 	StartTime string `json:"start_time,omitempty"`
