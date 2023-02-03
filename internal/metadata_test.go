@@ -299,6 +299,14 @@ func TestSetMetadata(t *testing.T) {
 				chapters:    chapterMetaData,
 			},
 			wantErr: false,
+		},{
+			name: "non existing file",
+			args: args{
+				mp3Filepath: "non existing",
+				metadata:    metaData,
+				chapters:    chapterMetaData,
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
