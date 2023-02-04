@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"os"
@@ -77,21 +78,40 @@ func SetMetadata(mp3Filepath string, metadata map[string]string, chapters []Chap
 	if err != nil {
 		return err
 	}
+	defer deleteFile(tempMetadataFile)
 
 	tempFile := filepath.Join(os.TempDir(), strconv.Itoa(random.Intn(9999999999999))+".mp3")
+
 	// ffmpeg -i INPUT -i FFMETADATAFILE -map_metadata 1 -codec copy OUTPUT
 	err = ffmpeg.Input(mp3Filepath).
 		Output(tempFile, ffmpeg.KwArgs{"i": tempMetadataFile, "map_metadata": "1", "codec": "copy"}).Run()
-	errRemove := os.Remove(tempFile)
-	if err != nil {
-		log.Printf("could not delete temp file %s", errRemove)
-	}
-
 	if err != nil {
 		return err
 	}
+	defer deleteFile(tempFile)
 
-	return MoveFile(tempMetadataFile, mp3Filepath)
+	return overwriteFile(tempFile, mp3Filepath)
+}
+
+func deleteFile(filePath string) {
+	err := os.Remove(filePath)
+	if err != nil {
+		log.Printf("could not delete temp file %s", err)
+	}
+}
+
+func overwriteFile(inputFilePath, outputFilePath string) (err error) {
+	targetFile, err := os.OpenFile(outputFilePath, os.O_RDWR|os.O_TRUNC, 0755)
+	if err != nil {
+		return err
+	}
+	sourceFile, err := os.Open(inputFilePath)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(targetFile, sourceFile)
+
+	return err
 }
 
 // Creates an meta data file in the temp folder.
