@@ -320,7 +320,7 @@ func TestSetMetadata(t *testing.T) {
 				if err != nil {
 					t.Errorf("could not read metadata %v", err)
 				}
-				if !reflect.DeepEqual(newMetaData, metaData) {
+				if !isMetaDataSimilar(t, newMetaData, metaData) {
 					t.Errorf("not equal metadata = %v, want %v", newMetaData, metaData)
 				}
 
@@ -340,12 +340,38 @@ func TestSetMetadata(t *testing.T) {
 	}
 }
 
+func isMetaDataSimilar(t *testing.T, leftMetadata, rightMetadata map[string]string) bool {
+	leftLength := len(leftMetadata)
+	righLength := len(rightMetadata)
+	if leftLength != righLength {
+		t.Errorf("not equal length of meta data map new value  = %v, want %v", leftMetadata, rightMetadata)
+		return false
+	}
+
+	for key := range leftMetadata {
+		// test file might be encoded with version A of ffmpeg
+		// and test may reencode with version B of ffmpeg
+		//
+		// skip encoder test to make test resiliant against
+		// different version of ffmeg
+		if key == "encoder" {
+			continue
+		}
+
+		if rightMetadata[key] != leftMetadata[key] {
+			return false
+		}
+	}
+
+	return true
+}
+
 // reencoding results in slightly different lengths
 func isChapterDataSimilar(t *testing.T, leftChapters, rightChapters []Chapter) bool {
 	leftLength := len(leftChapters)
 	righLength := len(rightChapters)
 	if leftLength != righLength {
-		t.Errorf("not equal length chapters new value  = %v, want %v", leftLength, righLength)
+		t.Errorf("not equal length chapters new value  = %v, want %v", leftChapters, rightChapters)
 		return false
 	}
 
