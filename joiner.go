@@ -27,7 +27,8 @@ func (c *MP3Container) Persist(path string) (err error) {
 		return err
 	}
 
-	SetMetadata(path, map[string]string{}, c.chapters)
+	c.chapters = mergeChapters(c.chapters)
+	SetMetadata(path, c.metaData, c.chapters)
 
 	return err
 }
@@ -54,7 +55,7 @@ func (c *MP3Container) AddSection(mp3Filepath string, startInSeconds float64, en
 	if err != nil {
 		return err
 	}
-	chaptersInTimeFrame := GetChapterInTimeFrame(allChapters, startInSeconds, endInSeconds)
+	chaptersInTimeFrame := getChapterInTimeFrame(allChapters, startInSeconds, endInSeconds)
 	c.chapters = chaptersInTimeFrame
 
 	// ffmpeg -ss 3 -t 5 -i input.mp3

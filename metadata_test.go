@@ -83,9 +83,7 @@ func TestGetChapterMetadata(t *testing.T) {
 			firstItem: Chapter{
 				TimeBase:  "1/1000",
 				Start:     0,
-				StartTime: "0.000000",
 				End:       16950,
-				EndTime:   "16.950000",
 				Tags: Tags{
 					Title: "LibriVox Introduction",
 				},
