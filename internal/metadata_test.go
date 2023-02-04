@@ -391,6 +391,48 @@ func isChapterDataSimilar(t *testing.T, leftChapters, rightChapters []Chapter) b
 	return true
 }
 
+func Test_overwriteFile(t *testing.T) {
+	type args struct {
+		inputFilePath  string
+		outputFilePath string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "positive test",
+			args: args{
+				inputFilePath:  setupTestFile(t),
+				outputFilePath: setupTestFile(t),
+			},
+			wantErr: false,
+		}, {
+			name: "input file does not exist",
+			args: args{
+				inputFilePath:  "",
+				outputFilePath: setupTestFile(t),
+			},
+			wantErr: true,
+		}, {
+			name: "input file does not exist",
+			args: args{
+				inputFilePath:  setupTestFile(t),
+				outputFilePath: "",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := overwriteFile(tt.args.inputFilePath, tt.args.outputFilePath); (err != nil) != tt.wantErr {
+				t.Errorf("overwriteFile() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func getMP3TestFolder(t *testing.T) string {
 	// get test folder
 	testFilePathFolder, err := os.Getwd()
@@ -414,4 +456,28 @@ func copy(src string, dst string) error {
 	}
 	// Write data to dst
 	return os.WriteFile(dst, data, 0644)
+}
+
+// create file to be moved around
+func setupTestFile(t *testing.T) string {
+	directory := os.TempDir()
+	file, err := os.CreateTemp(directory, "testFile")
+	filePath := file.Name()
+	if err != nil {
+		t.Error("could not create file")
+		return ""
+	}
+
+	t.Cleanup(func() {
+		err := file.Close()
+		if err != nil {
+			return
+		}
+		err = os.Remove(filePath)
+		if err != nil {
+			return
+		}
+	})
+
+	return filePath
 }
