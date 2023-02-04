@@ -11,6 +11,7 @@ type MP3Container struct {
 	chapters []Chapter
 	metaData map[string]string
 }
+
 func NewMP3() *MP3Container {
 	return &MP3Container{
 		streams: make([]*ffmpeg.Stream, 0),
@@ -28,7 +29,7 @@ func (c *MP3Container) Persist(path string) (err error) {
 	}
 
 	c.chapters = mergeChapters(c.chapters)
-	SetMetadata(path, c.metaData, c.chapters)
+	err = SetMetadata(path, c.metaData, c.chapters)
 
 	return err
 }
