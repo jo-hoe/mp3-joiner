@@ -2,6 +2,7 @@ package mp3joiner
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 )
@@ -9,7 +10,7 @@ import (
 var (
 	DEFAULT_TIME_BASE_INT = 1000000000
 	DEFAULT_TIME_BASE     = fmt.Sprintf("1/%d", DEFAULT_TIME_BASE_INT)
-	TIME_BASE_REGEX       = "1/([0-9]*)"
+	TIME_BASE_REGEX       = regexp.MustCompile("1/([0-9]*)")
 )
 
 type Chapter struct {
@@ -40,7 +41,7 @@ func (c *Chapter) getTimeBaseMultipicator() int {
 		return DEFAULT_TIME_BASE_INT
 	}
 
-	matches := ILLEGAL_METADATA_CHARATERS.FindAllString(c.TimeBase, -1)
+	matches := TIME_BASE_REGEX.FindStringSubmatch(c.TimeBase)
 	if len(matches) != 2 {
 		return DEFAULT_TIME_BASE_INT
 	}
@@ -116,8 +117,7 @@ func mergeChapters(chapters []Chapter) (result []Chapter) {
 		}
 
 		if chapters[i].Tags.Title == chapters[i-1].Tags.Title {
-			newEnd := chapters[i-1].getEndTimeInSeconds()
-			chapters[i-1].End = int(newEnd) * chapters[i-1].getTimeBaseMultipicator()
+			chapters[i-1].setEndTime(float64(chapters[i].End))
 
 			// remove item from slice
 			chapters = append(chapters[:i], chapters[i+1:]...)
