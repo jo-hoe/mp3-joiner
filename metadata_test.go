@@ -1,4 +1,4 @@
-package internal
+package mp3joiner
 
 import (
 	"fmt"
@@ -431,15 +431,6 @@ func Test_overwriteFile(t *testing.T) {
 			}
 		})
 	}
-}
-
-func getMP3TestFolder(t *testing.T) string {
-	// get test folder
-	testFilePathFolder, err := os.Getwd()
-	if err != nil {
-		t.Error(err)
-	}
-	return filepath.Join(filepath.Dir(testFilePathFolder), "test", "mp3")
 }
 
 func checkErr(err error, error_prefix string, t *testing.T) {

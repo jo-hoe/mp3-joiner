@@ -3,14 +3,14 @@ package mp3joiner
 import (
 	"fmt"
 
-	"github.com/jo-hoe/mp3-joiner/internal"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
 type MP3Container struct {
-	streams []*ffmpeg.Stream
+	streams  []*ffmpeg.Stream
+	chapters []Chapter
+	metaData map[string]string
 }
-
 func NewMP3() *MP3Container {
 	return &MP3Container{
 		streams: make([]*ffmpeg.Stream, 0),
@@ -23,6 +23,12 @@ func (c *MP3Container) Persist(path string) (err error) {
 	}
 	// set 0 video stream and 1 audio stream
 	err = ffmpeg.Concat(c.streams, ffmpeg.KwArgs{"a": 1, "v": 0}).Output(path).Run()
+	if err != nil {
+		return err
+	}
+
+	SetMetadata(path, map[string]string{}, c.chapters)
+
 	return err
 }
 
@@ -33,7 +39,7 @@ func (c *MP3Container) AddSection(mp3Filepath string, startInSeconds float64, en
 	}
 
 	// set end to last position
-	length, err := internal.GetLengthInSeconds(mp3Filepath)
+	length, err := GetLengthInSeconds(mp3Filepath)
 	if err != nil {
 		return err
 	}
@@ -43,9 +49,25 @@ func (c *MP3Container) AddSection(mp3Filepath string, startInSeconds float64, en
 		endPos = float64(endInSeconds)
 	}
 
+	// retrieve chapters
+	allChapters, err := GetChapterMetadata(mp3Filepath)
+	if err != nil {
+		return err
+	}
+	chaptersInTimeFrame := GetChapterInTimeFrame(allChapters, startInSeconds, endInSeconds)
+	c.chapters = chaptersInTimeFrame
+
 	// ffmpeg -ss 3 -t 5 -i input.mp3
 	input := ffmpeg.Input(mp3Filepath, ffmpeg.KwArgs{"ss": startInSeconds, "t": endPos - startInSeconds})
-
 	c.streams = append(c.streams, input)
+
+	if c.metaData == nil {
+		metadata, err := GetMP3Metadata(mp3Filepath)
+		if err != nil {
+			return err
+		}
+		c.metaData = metadata
+	}
+
 	return err
 }

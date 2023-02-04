@@ -2,14 +2,10 @@ package mp3joiner
 
 import (
 	"math"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
-	"time"
-
-	"github.com/jo-hoe/mp3-joiner/internal"
 )
 
 var (
@@ -17,7 +13,6 @@ var (
 )
 
 var generatedMP3FilePaths = make([]string, 0)
-var random = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 type SecondsWindow struct {
 	start, end float64
@@ -160,7 +155,7 @@ func TestMP3Container_Persist(t *testing.T) {
 				t.Errorf("MP3Container.Persist() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !tt.wantErr {
-				actualLength, err := internal.GetLengthInSeconds(tt.args.path)
+				actualLength, err := GetLengthInSeconds(tt.args.path)
 				if err != nil {
 					t.Errorf("MP3Container.Persist() found error while calculating length = %v", err)
 				}

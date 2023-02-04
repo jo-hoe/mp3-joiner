@@ -1,4 +1,4 @@
-package internal
+package mp3joiner
 
 import (
 	"bytes"
@@ -22,27 +22,8 @@ var ILLEGAL_METADATA_CHARATERS = regexp.MustCompile(`(#|;|=|\\)`)
 var FFMPEG_STATS_REGEX = regexp.MustCompile(`.+time=(?:.*)([0-9]{2,99}):([0-9]{2}):([0-9]{2}).([0-9]{2})`)
 var random = rand.New(rand.NewSource(time.Now().UnixNano()))
 
-type metadata struct {
-	Format struct {
-		Tags map[string]string `json:"tags,omitempty"`
-	} `json:"format,omitempty"`
-}
-
 type chapters struct {
 	Chapters []Chapter `json:"chapters,omitempty"`
-}
-
-type Chapter struct {
-	TimeBase  string `json:"time_base,omitempty"`
-	Start     int    `json:"start,omitempty"`
-	StartTime string `json:"start_time,omitempty"`
-	End       int    `json:"end,omitempty"`
-	EndTime   string `json:"end_time,omitempty"`
-	Tags      Tags   `json:"tags,omitempty"`
-}
-
-type Tags struct {
-	Title string `json:"title,omitempty"`
 }
 
 func GetMP3Metadata(mp3Filepath string) (result map[string]string, err error) {
