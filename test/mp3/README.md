@@ -8,8 +8,8 @@ It has [ID3](https://en.wikipedia.org/wiki/ID3) meta data and contains chapters.
 |Chapter Start|Chapter Name|
 |---|---|
 |00:00:00.000|LibriVox Introduction|
-|00:00:17.000|Intro|
-|00:00:24.000|The Telltale Heart|
-|00:17:33.000|Outro|
+|00:00:16.900|Intro|
+|00:00:23.900|The Telltale Heart|
+|00:17:32.900|Outro|
 
 Chapters have been created via [overdrive-chapterizer](https://github.com/oczkoisse/overdrive-chapterizer)

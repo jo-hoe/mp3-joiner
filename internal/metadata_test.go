@@ -84,8 +84,8 @@ func TestGetChapterMetadata(t *testing.T) {
 				TimeBase:  "1/1000",
 				Start:     0,
 				StartTime: "0.000000",
-				End:       17000,
-				EndTime:   "17.000000",
+				End:       16950,
+				EndTime:   "16.950000",
 				Tags: Tags{
 					Title: "LibriVox Introduction",
 				},
@@ -134,6 +134,7 @@ func TestGetMP3Metadata(t *testing.T) {
 				"title":         "The Tell-Tale Heart",
 				"artist":        "Edgar Allen Poe",
 				"track":         "13/16",
+				"encoder":       "Lavf58.76.100",
 			},
 			wantErr: false,
 		}, {
@@ -268,15 +269,15 @@ func Test_sanitizeMetadata(t *testing.T) {
 }
 
 func TestSetMetadata(t *testing.T) {
-	testFile := filepath.Join(os.TempDir(), TEST_FILENAME)
-	err := copy(filepath.Join(getMP3TestFolder(t), TEST_FILENAME), testFile)
+	testFilePath := filepath.Join(os.TempDir(), TEST_FILENAME)
+	err := copy(filepath.Join(getMP3TestFolder(t), TEST_FILENAME), testFilePath)
 	checkErr(err, "could not create temp file", t)
 
-	chapterMetaData, err := GetChapterMetadata(testFile)
+	chapterMetaData, err := GetChapterMetadata(testFilePath)
 	if err != nil {
 		t.Errorf("could not create temp file %v", err)
 	}
-	metaData, err := GetMP3Metadata(testFile)
+	metaData, err := GetMP3Metadata(testFilePath)
 	if err != nil {
 		t.Errorf("could not create temp file %v", err)
 	}
@@ -294,12 +295,12 @@ func TestSetMetadata(t *testing.T) {
 		{
 			name: "positive test",
 			args: args{
-				mp3Filepath: testFile,
+				mp3Filepath: testFilePath,
 				metadata:    metaData,
 				chapters:    chapterMetaData,
 			},
 			wantErr: false,
-		},{
+		}, {
 			name: "non existing file",
 			args: args{
 				mp3Filepath: "non existing",
@@ -315,7 +316,7 @@ func TestSetMetadata(t *testing.T) {
 				t.Errorf("SetMetadata() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if tt.wantErr == false {
-				newMetaData, err := GetMP3Metadata(testFile)
+				newMetaData, err := GetMP3Metadata(testFilePath)
 				if err != nil {
 					t.Errorf("could not read metadata %v", err)
 				}
@@ -323,29 +324,54 @@ func TestSetMetadata(t *testing.T) {
 					t.Errorf("not equal metadata = %v, want %v", newMetaData, metaData)
 				}
 
-				newChapterData, err := GetChapterMetadata(testFile)
+				newChapterData, err := GetChapterMetadata(testFilePath)
 				if err != nil {
 					t.Errorf("could not read chapter data %v", err)
 				}
-				if !reflect.DeepEqual(newChapterData, chapterMetaData) {
+				if !isChapterDataSimilar(t, newChapterData, chapterMetaData) {
 					t.Errorf("not equal chapters = %v, want %v", newChapterData, chapterMetaData)
 				}
 			}
 		})
 	}
-	err = os.Remove(testFile)
+	err = os.Remove(testFilePath)
 	if err != nil {
 		t.Errorf("could not delete file %v", err)
 	}
 }
 
+// reencoding results in slightly different lengths
+func isChapterDataSimilar(t *testing.T, leftChapters, rightChapters []Chapter) bool {
+	leftLength := len(leftChapters)
+	righLength := len(rightChapters)
+	if leftLength != righLength {
+		t.Errorf("not equal length chapters new value  = %v, want %v", leftLength, righLength)
+		return false
+	}
+
+	for i := 0; i < righLength; i++ {
+		left := leftChapters[i]
+		right := rightChapters[i]
+
+		if left.Tags.Title != right.Tags.Title || left.TimeBase != right.TimeBase {
+			return false
+		}
+
+		if math.Abs(float64(left.End-right.End)) > 50 || math.Abs(float64(left.Start-right.Start)) > 50 {
+			return false
+		}
+	}
+
+	return true
+}
+
 func getMP3TestFolder(t *testing.T) string {
 	// get test folder
-	testFileFolder, err := os.Getwd()
+	testFilePathFolder, err := os.Getwd()
 	if err != nil {
 		t.Error(err)
 	}
-	return filepath.Join(filepath.Dir(testFileFolder), "test", "mp3")
+	return filepath.Join(filepath.Dir(testFilePathFolder), "test", "mp3")
 }
 
 func checkErr(err error, error_prefix string, t *testing.T) {

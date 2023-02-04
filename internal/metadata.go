@@ -100,15 +100,24 @@ func deleteFile(filePath string) {
 	}
 }
 
+func closeFile(file *os.File) {
+	err := file.Close()
+	if err != nil {
+		log.Printf("could not close file %s", err)
+	}
+}
+
 func overwriteFile(inputFilePath, outputFilePath string) (err error) {
 	targetFile, err := os.OpenFile(outputFilePath, os.O_RDWR|os.O_TRUNC, 0755)
 	if err != nil {
 		return err
 	}
+	defer closeFile(targetFile)
 	sourceFile, err := os.Open(inputFilePath)
 	if err != nil {
 		return err
 	}
+	defer closeFile(sourceFile)
 	_, err = io.Copy(targetFile, sourceFile)
 
 	return err
