@@ -179,3 +179,44 @@ func Test_mergeChapters(t *testing.T) {
 		})
 	}
 }
+
+func TestChapter_getCachedMultipicator(t *testing.T) {
+	tests := []struct {
+		name string
+		c    *Chapter
+		want int
+	}{
+		{
+			name: "positive test",
+			c: &Chapter{
+				TimeBase: "1/1000",
+			},
+			want: 1000,
+		}, {
+			name: "malformed timebase",
+			c: &Chapter{
+				TimeBase: "1-1000",
+			},
+			want: 1000000000,
+		}, {
+			name: "no timebase set",
+			c: &Chapter{
+				TimeBase: "",
+			},
+			want: 1000000000,
+		}, {
+			name: "cache test",
+			c: &Chapter{
+				cachedMultipicator: 5,
+			},
+			want: 5,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.c.getCachedMultipicator(); got != tt.want {
+				t.Errorf("Chapter.getCachedMultipicator() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

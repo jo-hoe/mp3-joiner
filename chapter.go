@@ -32,7 +32,7 @@ type Tags struct {
 	Title string `json:"title,omitempty"`
 }
 
-func (c *Chapter) getcachedMultipicator() int {
+func (c *Chapter) getCachedMultipicator() int {
 	if c.cachedMultipicator != 0 {
 		return c.cachedMultipicator
 	}
@@ -55,20 +55,20 @@ func (c *Chapter) getcachedMultipicator() int {
 }
 
 func (c *Chapter) getStartTimeInSeconds() float64 {
-	return float64(c.Start) / float64(c.getcachedMultipicator())
+	return float64(c.Start) / float64(c.getCachedMultipicator())
 }
 
 func (c *Chapter) getEndTimeInSeconds() float64 {
-	return float64(c.End) / float64(c.getcachedMultipicator())
+	return float64(c.End) / float64(c.getCachedMultipicator())
 }
 
 func (c *Chapter) setStartTime(seconds float64) {
-	intermediate := int(seconds * float64(c.getcachedMultipicator()))
+	intermediate := int(seconds * float64(c.getCachedMultipicator()))
 	c.Start = intermediate
 }
 
 func (c *Chapter) setEndTime(seconds float64) {
-	intermediate := int(seconds * float64(c.getcachedMultipicator()))
+	intermediate := int(seconds * float64(c.getCachedMultipicator()))
 	c.End = intermediate
 }
 
@@ -110,8 +110,8 @@ func isChapterInTimeFrame(chapter Chapter, startInSeconds float64, endInSeconds 
 
 func mergeChapters(chapters []Chapter) (result []Chapter) {
 	// sort by start
-	sort.SliceStable(result, func(i, j int) bool {
-		return result[i].Start < result[j].Start
+	sort.SliceStable(chapters, func(i, j int) bool {
+		return chapters[i].Start < chapters[j].Start
 	})
 
 	result = make([]Chapter, 0)
