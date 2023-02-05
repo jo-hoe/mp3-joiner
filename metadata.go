@@ -26,7 +26,7 @@ type chapters struct {
 	Chapters []Chapter `json:"chapters,omitempty"`
 }
 
-func GetMP3Metadata(mp3Filepath string) (result map[string]string, err error) {
+func GetMetadata(mp3Filepath string) (result map[string]string, err error) {
 	var data metadata
 	// ffprobe -hide_banner -v 0 -i input.mp3 -print_format json -show_chapters
 	err = ffprobe(mp3Filepath, ffmpeg.KwArgs{"hide_banner": "", "v": 0, "show_entries": "format", "of": "json"}, &data)

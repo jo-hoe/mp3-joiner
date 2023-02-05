@@ -76,7 +76,7 @@ func (c *MP3Container) AddSection(mp3Filepath string, startInSeconds float64, en
 	c.streams = append(c.streams, input)
 
 	if c.metaData == nil {
-		metadata, err := GetMP3Metadata(mp3Filepath)
+		metadata, err := GetMetadata(mp3Filepath)
 		if err != nil {
 			return err
 		}

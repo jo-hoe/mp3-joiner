@@ -81,9 +81,9 @@ func TestGetChapterMetadata(t *testing.T) {
 			args:            args{mp3Filepath: filepath.Join(getMP3TestFolder(t), TEST_FILENAME)},
 			numberOfResults: 4,
 			firstItem: Chapter{
-				TimeBase:  "1/1000",
-				Start:     0,
-				End:       16950,
+				TimeBase: "1/1000",
+				Start:    0,
+				End:      16900,
 				Tags: Tags{
 					Title: "LibriVox Introduction",
 				},
@@ -110,7 +110,7 @@ func TestGetChapterMetadata(t *testing.T) {
 	}
 }
 
-func TestGetMP3Metadata(t *testing.T) {
+func TestGetMetadata(t *testing.T) {
 	type args struct {
 		mp3Filepath string
 	}
@@ -132,6 +132,7 @@ func TestGetMP3Metadata(t *testing.T) {
 				"title":         "The Tell-Tale Heart",
 				"artist":        "Edgar Allen Poe",
 				"track":         "13/16",
+				"TLEN":          "1060",
 				"encoder":       "Lavf58.76.100",
 			},
 			wantErr: false,
@@ -146,13 +147,13 @@ func TestGetMP3Metadata(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotResult, err := GetMP3Metadata(tt.args.mp3Filepath)
+			gotResult, err := GetMetadata(tt.args.mp3Filepath)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GetMP3Metadata() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GetMetadata() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(gotResult, tt.wantResult) {
-				t.Errorf("GetMP3Metadata() = %v, want %v", gotResult, tt.wantResult)
+				t.Errorf("GetMetadata() = %v, want %v", gotResult, tt.wantResult)
 			}
 		})
 	}
@@ -275,7 +276,7 @@ func TestSetMetadata(t *testing.T) {
 	if err != nil {
 		t.Errorf("could not create temp file %v", err)
 	}
-	metaData, err := GetMP3Metadata(testFilePath)
+	metaData, err := GetMetadata(testFilePath)
 	if err != nil {
 		t.Errorf("could not create temp file %v", err)
 	}
@@ -314,7 +315,7 @@ func TestSetMetadata(t *testing.T) {
 				t.Errorf("SetMetadata() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if tt.wantErr == false {
-				newMetaData, err := GetMP3Metadata(testFilePath)
+				newMetaData, err := GetMetadata(testFilePath)
 				if err != nil {
 					t.Errorf("could not read metadata %v", err)
 				}

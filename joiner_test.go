@@ -1,6 +1,7 @@
 package mp3joiner
 
 import (
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -162,6 +163,13 @@ func TestMP3Container_Persist(t *testing.T) {
 				// fuzzy test if expected length is out by 0.1 or more
 				if math.Abs(actualLength-tt.expectedLength) > 0.1 {
 					t.Errorf("MP3Container.Persist() expected length = %v, actual length = %v", tt.expectedLength, actualLength)
+				}
+				metadata, err := GetMetadata(tt.args.path)
+				if err != nil {
+					t.Errorf("MP3Container.Persist() found error retrieving metadata length = %v", err)
+				}
+				if metadata[TITLE_LENGTH_IN_MILLISECONDS] != fmt.Sprintf("%.0f", actualLength * 1000) {
+					t.Errorf("MP3Container.Persist() metadata length = %v, actual length = %v", actualLength, metadata[TITLE_LENGTH_IN_MILLISECONDS])
 				}
 			}
 		})
