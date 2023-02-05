@@ -22,14 +22,14 @@ type Chapter struct {
 	cachedMultipicator int
 }
 
+type Tags struct {
+	Title string `json:"title,omitempty"`
+}
+
 type metadata struct {
 	Format struct {
 		Tags map[string]string `json:"tags,omitempty"`
 	} `json:"format,omitempty"`
-}
-
-type Tags struct {
-	Title string `json:"title,omitempty"`
 }
 
 func (c *Chapter) getCachedMultipicator() int {
