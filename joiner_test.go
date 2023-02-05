@@ -77,15 +77,22 @@ func TestMP3Container_AddSection(t *testing.T) {
 }
 
 func TestMP3Container_Persist(t *testing.T) {
+	testfilepath := filepath.Join(getMP3TestFolder(t), testFileName)
+	totalFileSize := getFileSizeInBytes(t, testfilepath)
+	totalFileLength, err := GetLengthInSeconds(testfilepath)
+	if err != nil {
+		t.Errorf("cloud not get file length %v", err)
+	}
+
 	type args struct {
 		path string
 	}
 	tests := []struct {
-		name           string
-		c              *MP3Container
-		args           args
-		expectedLength float64
-		wantErr        bool
+		name                    string
+		c                       *MP3Container
+		args                    args
+		expectedLengthInSeconds float64
+		wantErr                 bool
 	}{
 		{
 			name: "sections test",
@@ -99,8 +106,8 @@ func TestMP3Container_Persist(t *testing.T) {
 			args: args{
 				path: generateMP3FileName(t),
 			},
-			expectedLength: 5,
-			wantErr:        false,
+			expectedLengthInSeconds: 5,
+			wantErr:                 false,
 		}, {
 			name: "sub second test",
 			c: createContainer(t, []SecondsWindow{{
@@ -110,8 +117,8 @@ func TestMP3Container_Persist(t *testing.T) {
 			args: args{
 				path: generateMP3FileName(t),
 			},
-			expectedLength: 1.5,
-			wantErr:        false,
+			expectedLengthInSeconds: 1.5,
+			wantErr:                 false,
 		}, {
 			name: "complete file test",
 			c: createContainer(t, []SecondsWindow{{
@@ -121,16 +128,16 @@ func TestMP3Container_Persist(t *testing.T) {
 			args: args{
 				path: generateMP3FileName(t),
 			},
-			expectedLength: 1059.89,
-			wantErr:        false,
+			expectedLengthInSeconds: 1059.89,
+			wantErr:                 false,
 		}, {
 			name: "file not available",
 			c:    createContainer(t, make([]SecondsWindow, 0)),
 			args: args{
 				path: "dummy 1",
 			},
-			expectedLength: 0,
-			wantErr:        true,
+			expectedLengthInSeconds: 0,
+			wantErr:                 true,
 		},
 	}
 	for _, tt := range tests {
@@ -144,12 +151,36 @@ func TestMP3Container_Persist(t *testing.T) {
 					t.Errorf("MP3Container.Persist() found error while calculating length = %v", err)
 				}
 				// fuzzy test if expected length is out by 0.1 or more
-				if math.Abs(actualLength-tt.expectedLength) > 0.1 {
-					t.Errorf("MP3Container.Persist() expected length = %v, actual length = %v", tt.expectedLength, actualLength)
+				if math.Abs(actualLength-tt.expectedLengthInSeconds) > 0.1 {
+					t.Errorf("MP3Container.Persist() expected length = %v, actual length = %v", tt.expectedLengthInSeconds, actualLength)
+				}
+
+				fileSize := getFileSizeInBytes(t, tt.args.path)
+				expectedSize := (float64(totalFileSize) / totalFileLength) * tt.expectedLengthInSeconds
+				// test that resulting file is not less the 95% from expected file size
+				if (float64(fileSize) / expectedSize) < 0.95 {
+					t.Errorf("MP3Container.Persist() file did not have approximated size, expected %v, actual %v", expectedSize, fileSize)
 				}
 			}
 		})
 	}
+}
+func getFileSizeInBytes(t *testing.T, filePath string) int64 {
+	file, err := os.Open(filePath)
+	if err != nil {
+		t.Errorf("could not open file path %s, %v", filePath, err)
+		return -1
+	}
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		t.Errorf("could not get file details %s, %v", filePath, err)
+		return -1
+	}
+
+	defer file.Close()
+
+	return fileInfo.Size()
 }
 
 func getMP3TestFolder(t *testing.T) string {
