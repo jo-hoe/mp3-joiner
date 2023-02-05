@@ -26,6 +26,14 @@ type chapters struct {
 	Chapters []Chapter `json:"chapters,omitempty"`
 }
 
+type filemetadata struct {
+	Streams []stream `json:"streams,omitempty"`
+}
+
+type stream struct {
+	Bitrate string `json:"bit_rate,omitempty"`
+}
+
 func GetMetadata(mp3Filepath string) (result map[string]string, err error) {
 	var data metadata
 	// ffprobe -hide_banner -v 0 -i input.mp3 -print_format json -show_chapters
@@ -55,6 +63,14 @@ func ffprobe(mp3Filepath string, args ffmpeg.KwArgs, v any) (err error) {
 }
 
 func SetMetadata(mp3Filepath string, metadata map[string]string, chapters []Chapter) (err error) {
+	bitrate, err := GetBitrate(mp3Filepath)
+	if err != nil {
+		return err
+	}
+	return setMetadataWithBitrate(mp3Filepath, metadata, chapters, bitrate)
+}
+
+func setMetadataWithBitrate(mp3Filepath string, metadata map[string]string, chapters []Chapter, bitrate int) (err error) {
 	tempMetadataFile, err := createTempMetadataFile(metadata, chapters)
 	if err != nil {
 		return err
@@ -64,8 +80,8 @@ func SetMetadata(mp3Filepath string, metadata map[string]string, chapters []Chap
 	tempFile := filepath.Join(os.TempDir(), strconv.Itoa(random.Intn(9999999999999))+".mp3")
 
 	// ffmpeg -i INPUT -i FFMETADATAFILE -map_metadata 1 -codec copy OUTPUT
-	err = ffmpeg.Input(mp3Filepath).
-		Output(tempFile, ffmpeg.KwArgs{"i": tempMetadataFile, "map_metadata": "1", "codec": "copy"}).Run()
+	err = ffmpeg.Input(mp3Filepath, ffmpeg.KwArgs{"i": tempMetadataFile, "codec": "copy"}).
+		Output(tempFile, ffmpeg.KwArgs{"map_metadata": "1", "b:a": fmt.Sprintf("%dk", int(bitrate/1000))}).Run()
 	if err != nil {
 		return err
 	}
@@ -120,7 +136,7 @@ func createTempMetadataFile(metadata map[string]string, chapters []Chapter) (met
 	metadataFilepath = tempFile.Name()
 
 	var stringBuilder strings.Builder
-	stringBuilder.WriteString(";FFMETADATA")
+	stringBuilder.WriteString(";FFMETADATA1")
 
 	for key, value := range metadata {
 		stringBuilder.WriteString(fmt.Sprintf("\n%s=%s", sanitizeMetadata(key), sanitizeMetadata(value)))
@@ -168,6 +184,19 @@ func GetLengthInSeconds(mp3Filepath string) (result float64, err error) {
 	}
 
 	return parseMP3Length(output)
+}
+
+func GetBitrate(mp3Filepath string) (result int, err error) {
+	var bitrate filemetadata
+	result = -1
+
+	// ffprobe -i .\input.mp3 -v 0 -show_entries stream=bit_rate -print_format json
+	err = ffprobe(mp3Filepath, ffmpeg.KwArgs{"v": 0, "show_entries": "stream", "print_format": "json"}, &bitrate)
+	if err != nil {
+		return result, err
+	}
+
+	return strconv.Atoi(bitrate.Streams[0].Bitrate)
 }
 
 func getFFmpegStats(mp3Filepath string) (output string, err error) {

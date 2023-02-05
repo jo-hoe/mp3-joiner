@@ -14,6 +14,7 @@ type MP3Container struct {
 	streams  []*ffmpeg.Stream
 	chapters []Chapter
 	metaData map[string]string
+	bitrate  int
 }
 
 func NewMP3() *MP3Container {
@@ -26,8 +27,10 @@ func (c *MP3Container) Persist(path string) (err error) {
 	if len(c.streams) < 1 {
 		return fmt.Errorf("no streams to persist")
 	}
-	// set 0 video stream and 1 audio stream
-	err = ffmpeg.Concat(c.streams, ffmpeg.KwArgs{"a": 1, "v": 0}).Output(path).Run()
+
+	// -v 0 = set 0 video stream
+	// -a 1 = set 1 audio stream
+	err = ffmpeg.Concat(c.streams, ffmpeg.KwArgs{"a": 1, "v": 0}).Output(path, ffmpeg.KwArgs{"b:a": fmt.Sprintf("%dk", int(c.bitrate/1000))}).Run()
 	if err != nil {
 		return err
 	}
@@ -41,7 +44,7 @@ func (c *MP3Container) Persist(path string) (err error) {
 		}
 		c.metaData[TITLE_LENGTH_IN_MILLISECONDS] = fmt.Sprintf("%.0f", length*float64(1000))
 	}
-	err = SetMetadata(path, c.metaData, c.chapters)
+	err = setMetadataWithBitrate(path, c.metaData, c.chapters, c.bitrate)
 
 	return err
 }
@@ -81,6 +84,13 @@ func (c *MP3Container) AddSection(mp3Filepath string, startInSeconds float64, en
 			return err
 		}
 		c.metaData = metadata
+	}
+	bitrate, err := GetBitrate(mp3Filepath)
+	if err != nil {
+		return err
+	}
+	if bitrate > c.bitrate {
+		c.bitrate = bitrate
 	}
 
 	return err

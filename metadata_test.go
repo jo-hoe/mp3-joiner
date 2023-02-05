@@ -27,14 +27,14 @@ func Test_createTempMetadataFile(t *testing.T) {
 		{
 			name:            "empty test",
 			args:            args{metadata: map[string]string{}, chapters: []Chapter{}},
-			wantFileContent: ";FFMETADATA",
+			wantFileContent: ";FFMETADATA1",
 			wantErr:         false,
 		}, {
 			name: "positive test",
 			args: args{metadata: map[string]string{"title": "my title"}, chapters: []Chapter{
 				{TimeBase: "1/1", Start: 12, End: 13, Tags: Tags{Title: "my chapter"}},
 			}},
-			wantFileContent: ";FFMETADATA\n" +
+			wantFileContent: ";FFMETADATA1\n" +
 				"title=my title\n" +
 				"[CHAPTER]\n" +
 				"TIMEBASE=1/1\n" +
@@ -427,6 +427,46 @@ func Test_overwriteFile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := overwriteFile(tt.args.inputFilePath, tt.args.outputFilePath); (err != nil) != tt.wantErr {
 				t.Errorf("overwriteFile() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestGetBitrate(t *testing.T) {
+	type args struct {
+		mp3Filepath string
+	}
+	tests := []struct {
+		name       string
+		args       args
+		wantResult int
+		wantErr    bool
+	}{
+		{
+			name: "positive test",
+			args: args{
+				mp3Filepath: filepath.Join(getMP3TestFolder(t), TEST_FILENAME),
+			},
+			wantResult: 32000,
+			wantErr:    false,
+		}, {
+			name: "non existing file",
+			args: args{
+				mp3Filepath: "",
+			},
+			wantResult: -1,
+			wantErr:    true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotResult, err := GetBitrate(tt.args.mp3Filepath)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetBitrate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if gotResult != tt.wantResult {
+				t.Errorf("GetBitrate() = %v, want %v", gotResult, tt.wantResult)
 			}
 		})
 	}
