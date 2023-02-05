@@ -19,7 +19,7 @@ type Chapter struct {
 	End      int    `json:"end,omitempty"`
 	Tags     Tags   `json:"tags,omitempty"`
 
-	timeBaseMultipicator int
+	cachedMultipicator int
 }
 
 type metadata struct {
@@ -32,9 +32,9 @@ type Tags struct {
 	Title string `json:"title,omitempty"`
 }
 
-func (c *Chapter) getTimeBaseMultipicator() int {
-	if c.timeBaseMultipicator != 0 {
-		return c.timeBaseMultipicator
+func (c *Chapter) getcachedMultipicator() int {
+	if c.cachedMultipicator != 0 {
+		return c.cachedMultipicator
 	}
 
 	if len(c.TimeBase) == 0 {
@@ -50,25 +50,25 @@ func (c *Chapter) getTimeBaseMultipicator() int {
 	if err != nil {
 		return DEFAULT_TIME_BASE_INT
 	}
-	c.timeBaseMultipicator = multiplicator
-	return c.timeBaseMultipicator
+	c.cachedMultipicator = multiplicator
+	return c.cachedMultipicator
 }
 
 func (c *Chapter) getStartTimeInSeconds() float64 {
-	return float64(c.Start) * float64(c.getTimeBaseMultipicator())
+	return float64(c.Start) / float64(c.getcachedMultipicator())
 }
 
 func (c *Chapter) getEndTimeInSeconds() float64 {
-	return float64(c.End) * float64(c.getTimeBaseMultipicator())
+	return float64(c.End) / float64(c.getcachedMultipicator())
 }
 
 func (c *Chapter) setStartTime(seconds float64) {
-	intermediate := int(seconds * float64(c.getTimeBaseMultipicator()))
+	intermediate := int(seconds * float64(c.getcachedMultipicator()))
 	c.Start = intermediate
 }
 
 func (c *Chapter) setEndTime(seconds float64) {
-	intermediate := int(seconds * float64(c.getTimeBaseMultipicator()))
+	intermediate := int(seconds * float64(c.getcachedMultipicator()))
 	c.End = intermediate
 }
 
@@ -78,10 +78,10 @@ func getChapterInTimeFrame(chapters []Chapter, startInSeconds float64, endInSeco
 	// add all chapters which are in frame
 	for _, chapter := range chapters {
 		if isChapterInTimeFrame(chapter, startInSeconds, endInSeconds) {
-			if chapter.getStartTimeInSeconds() > startInSeconds {
+			if chapter.getStartTimeInSeconds() < startInSeconds {
 				chapter.setStartTime(startInSeconds)
 			}
-			if chapter.getEndTimeInSeconds() < endInSeconds {
+			if chapter.getEndTimeInSeconds() > endInSeconds {
 				chapter.setEndTime(endInSeconds)
 			}
 			result = append(result, chapter)
@@ -97,10 +97,15 @@ func getChapterInTimeFrame(chapters []Chapter, startInSeconds float64, endInSeco
 }
 
 func isChapterInTimeFrame(chapter Chapter, startInSeconds float64, endInSeconds float64) bool {
-	isStrictSubSet := startInSeconds >= chapter.getStartTimeInSeconds() && endInSeconds <= chapter.getEndTimeInSeconds()
-	isChapterAfter := endInSeconds <= chapter.getStartTimeInSeconds()
+	isOutside := chapter.getEndTimeInSeconds() <= startInSeconds || chapter.getStartTimeInSeconds() >= endInSeconds
+	if isOutside {
+		return false
+	}
 
-	return isStrictSubSet && !isChapterAfter
+	isStartInChapter := startInSeconds >= chapter.getStartTimeInSeconds()
+	isEndInChapter := endInSeconds <= chapter.getEndTimeInSeconds()
+
+	return isStartInChapter || isEndInChapter
 }
 
 func mergeChapters(chapters []Chapter) (result []Chapter) {
@@ -112,15 +117,16 @@ func mergeChapters(chapters []Chapter) (result []Chapter) {
 	result = make([]Chapter, 0)
 
 	for i := len(chapters) - 1; i >= 0; i-- {
-		if i-1 <= 0 {
+		if i-1 < 0 {
 			return
 		}
 
 		if chapters[i].Tags.Title == chapters[i-1].Tags.Title {
-			chapters[i-1].setEndTime(float64(chapters[i].End))
+			// reset end of next item
+			chapters[i-1].setEndTime(float64(chapters[i].getEndTimeInSeconds()))
 
-			// remove item from slice
-			chapters = append(chapters[:i], chapters[i+1:]...)
+			// remove current item from slice
+			result = append(chapters[:i], chapters[i+1:]...)
 		}
 	}
 
