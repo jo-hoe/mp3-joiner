@@ -12,8 +12,6 @@ var (
 	testFileName = "edgar-allen-poe-the-telltale-heart-original.mp3"
 )
 
-var generatedMP3FilePaths = make([]string, 0)
-
 type SecondsWindow struct {
 	start, end float64
 }
@@ -25,11 +23,12 @@ func TestMP3Container_AddSection(t *testing.T) {
 		endInSeconds   float64
 	}
 	tests := []struct {
-		name         string
-		c            *MP3Container
-		args         args
-		wantErr      bool
-		streamsCount int
+		name                string
+		c                   *MP3Container
+		args                args
+		wantErr             bool
+		streamsCount        int
+		approximateFileSize int
 	}{
 		{
 			name: "positive test",
@@ -78,21 +77,6 @@ func TestMP3Container_AddSection(t *testing.T) {
 }
 
 func TestMP3Container_Persist(t *testing.T) {
-	t.Cleanup(func() {
-		for _, filePath := range generatedMP3FilePaths {
-			err := os.Remove(filePath)
-			if err != nil {
-				t.Errorf("could not deleted file %s", filePath)
-			}
-		}
-		generatedMP3FilePaths = make([]string, 0)
-	})
-	container := NewMP3()
-	err := container.AddSection(filepath.Join(getMP3TestFolder(t), testFileName), 0, 5)
-	if err != nil {
-		t.Errorf("could not add section %v", err)
-	}
-
 	type args struct {
 		path string
 	}
@@ -113,7 +97,7 @@ func TestMP3Container_Persist(t *testing.T) {
 				end:   5,
 			}}),
 			args: args{
-				path: generateMP3FileName(),
+				path: generateMP3FileName(t),
 			},
 			expectedLength: 5,
 			wantErr:        false,
@@ -124,7 +108,7 @@ func TestMP3Container_Persist(t *testing.T) {
 				end:   1.5,
 			}}),
 			args: args{
-				path: generateMP3FileName(),
+				path: generateMP3FileName(t),
 			},
 			expectedLength: 1.5,
 			wantErr:        false,
@@ -135,7 +119,7 @@ func TestMP3Container_Persist(t *testing.T) {
 				end:   -1,
 			}}),
 			args: args{
-				path: generateMP3FileName(),
+				path: generateMP3FileName(t),
 			},
 			expectedLength: 1059.89,
 			wantErr:        false,
@@ -163,34 +147,9 @@ func TestMP3Container_Persist(t *testing.T) {
 				if math.Abs(actualLength-tt.expectedLength) > 0.1 {
 					t.Errorf("MP3Container.Persist() expected length = %v, actual length = %v", tt.expectedLength, actualLength)
 				}
-				// metadata, err := GetMetadata(tt.args.path)
-				if err != nil {
-					t.Errorf("MP3Container.Persist() found error retrieving metadata length = %v", err)
-				}
-				//if metadata[TITLE_LENGTH_IN_MILLISECONDS] != fmt.Sprintf("%.0f", actualLength*1000) {
-				//	t.Errorf("MP3Container.Persist() metadata length = %v, actual length = %v", actualLength, metadata[TITLE_LENGTH_IN_MILLISECONDS])
-				//}
 			}
 		})
 	}
-}
-
-func getFileSizeInBytes(t *testing.T, filePath string) int64 {
-	file, err := os.Open(filePath)
-	if err != nil {
-		t.Errorf("could not open file path %s, %v", filePath, err)
-		return -1
-	}
-
-	fileInfo, err := file.Stat()
-	if err != nil {
-		t.Errorf("could not get file details %s, %v", filePath, err)
-		return -1
-	}
-
-	defer file.Close()
-
-	return fileInfo.Size()
 }
 
 func getMP3TestFolder(t *testing.T) string {
@@ -202,9 +161,14 @@ func getMP3TestFolder(t *testing.T) string {
 	return filepath.Join(testFileFolder, "test", "mp3")
 }
 
-func generateMP3FileName() string {
+func generateMP3FileName(t *testing.T) string {
 	filePath := filepath.Join(os.TempDir(), strconv.Itoa(random.Intn(9999999999999))+".mp3")
-	generatedMP3FilePaths = append(generatedMP3FilePaths, filePath)
+	t.Cleanup(func() {
+		err := os.Remove(filePath)
+		if err != nil {
+			t.Errorf("could not delete file %s, %v", filePath, err)
+		}
+	})
 	return filePath
 }
 
