@@ -6,6 +6,10 @@ import (
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
+var (
+	TITLE_LENGTH_IN_MILLISECONDS = "TLEN"
+)
+
 type MP3Container struct {
 	streams  []*ffmpeg.Stream
 	chapters []Chapter
@@ -29,6 +33,14 @@ func (c *MP3Container) Persist(path string) (err error) {
 	}
 
 	c.chapters = mergeChapters(c.chapters)
+	// set new length to mp3
+	if _, ok := c.metaData[TITLE_LENGTH_IN_MILLISECONDS]; ok {
+		length, err := GetLengthInSeconds(path)
+		if err != nil {
+			return err
+		}
+		c.metaData[TITLE_LENGTH_IN_MILLISECONDS] = fmt.Sprintf("%.0f", length*float64(1000))
+	}
 	err = SetMetadata(path, c.metaData, c.chapters)
 
 	return err
