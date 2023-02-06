@@ -64,7 +64,7 @@ func (c *MP3Container) AddSection(mp3Filepath string, startInSeconds float64, en
 	if err != nil {
 		return err
 	}
-	chaptersInTimeFrame := getChapterInTimeFrame(allChapters, startInSeconds, endInSeconds)
+	chaptersInTimeFrame := getChapterInTimeFrame(allChapters, startInSeconds, endPos)
 	c.chapters = chaptersInTimeFrame
 
 	// ffmpeg -ss 3 -t 5 -i input.mp3

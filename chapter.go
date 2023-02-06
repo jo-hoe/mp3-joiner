@@ -101,6 +101,10 @@ func isChapterInTimeFrame(chapter Chapter, startInSeconds float64, endInSeconds 
 	if isOutside {
 		return false
 	}
+	isInside := startInSeconds <= chapter.getEndTimeInSeconds() && endInSeconds >= chapter.getEndTimeInSeconds()
+	if isInside {
+		return true
+	}
 
 	isStartInChapter := startInSeconds >= chapter.getStartTimeInSeconds()
 	isEndInChapter := endInSeconds <= chapter.getEndTimeInSeconds()
@@ -109,24 +113,27 @@ func isChapterInTimeFrame(chapter Chapter, startInSeconds float64, endInSeconds 
 }
 
 func mergeChapters(chapters []Chapter) (result []Chapter) {
+	result = chapters
+	if len(result) < 2 {
+		return result
+	}
+
 	// sort by start
-	sort.SliceStable(chapters, func(i, j int) bool {
-		return chapters[i].Start < chapters[j].Start
+	sort.SliceStable(result, func(i, j int) bool {
+		return result[i].Start < result[j].Start
 	})
 
-	result = make([]Chapter, 0)
-
-	for i := len(chapters) - 1; i >= 0; i-- {
+	for i := len(result) - 1; i >= 0; i-- {
 		if i-1 < 0 {
 			return
 		}
 
-		if chapters[i].Tags.Title == chapters[i-1].Tags.Title {
+		if result[i].Tags.Title == result[i-1].Tags.Title {
 			// reset end of next item
-			chapters[i-1].setEndTime(float64(chapters[i].getEndTimeInSeconds()))
+			result[i-1].setEndTime(float64(result[i].getEndTimeInSeconds()))
 
 			// remove current item from slice
-			result = append(chapters[:i], chapters[i+1:]...)
+			result = append(result[:i], result[i+1:]...)
 		}
 	}
 

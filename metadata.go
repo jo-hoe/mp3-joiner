@@ -81,14 +81,30 @@ func setMetadataWithBitrate(mp3Filepath string, metadata map[string]string, chap
 
 	// ffmpeg -i INPUT.mp3 -i MATADATA -map_chapters 1 -map_metadata 1 -b:a 32k -codec copy OUTPUT.mp3
 	// https://github.com/u2takey/ffmpeg-go/search?q=multiple+input&type=issues
-	err = ffmpeg.Input(tempMetadataFile, ffmpeg.KwArgs{"map_metadata": "1", "map_chapters": "1", "i": mp3Filepath}).
-		Output(tempFile, ffmpeg.KwArgs{"b:a": fmt.Sprintf("%dk", int(bitrate/1000)), "codec": "copy"}).Run()
+	mp3Input := ffmpeg.Input(mp3Filepath)
+	metadataInput := ffmpeg.Input(tempMetadataFile)
+	command := ffmpeg.Output([]*ffmpeg.Stream{mp3Input, metadataInput}, tempFile, ffmpeg.KwArgs{"map_metadata": "1", "map_chapters": "1", "b:a": fmt.Sprintf("%dk", int(bitrate/1000)), "codec": "copy"}).
+		Compile()
+	command.Args = filteParameter(command.Args, "-map")
+	err = command.Run()
 	if err != nil {
 		return err
 	}
 	defer deleteFile(tempFile)
 
 	return overwriteFile(tempFile, mp3Filepath)
+}
+
+func filteParameter(parameterList []string, itemToDelete string) []string {
+	var result = make([]string, 0)
+	for i := 0; i < len(parameterList); i++ {
+		if parameterList[i] != itemToDelete {
+			result = append(result, parameterList[i])
+		} else {
+			i = i + 1
+		}
+	}
+	return result
 }
 
 func deleteFile(filePath string) {
