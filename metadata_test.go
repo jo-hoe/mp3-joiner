@@ -268,7 +268,7 @@ func Test_sanitizeMetadata(t *testing.T) {
 }
 
 func TestSetMetadata(t *testing.T) {
-	testFilePath := filepath.Join(os.TempDir(), TEST_FILENAME)
+	testFilePath := generateMP3FileName(t)
 	err := copy(filepath.Join(getMP3TestFolder(t), TEST_FILENAME), testFilePath)
 	checkErr(err, "could not create temp file", t)
 
@@ -292,13 +292,29 @@ func TestSetMetadata(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "positive test",
+			name: "set same metadata again",
 			args: args{
 				mp3Filepath: testFilePath,
 				metadata:    metaData,
 				chapters:    chapterMetaData,
 			},
 			wantErr: false,
+		}, {
+			name: "set new different",
+			args: args{
+				mp3Filepath: generateMP3FileName(t),
+				metadata:    map[string]string{"title": "test"},
+				chapters: []Chapter{{
+					cachedMultipicator: 0,
+					TimeBase:           "1/1",
+					Start:              1,
+					End:                2,
+					Tags: Tags{
+						Title: "testtitle",
+					},
+				}},
+			},
+			wantErr: true,
 		}, {
 			name: "non existing file",
 			args: args{
@@ -319,7 +335,7 @@ func TestSetMetadata(t *testing.T) {
 				if err != nil {
 					t.Errorf("could not read metadata %v", err)
 				}
-				if !isMetaDataSimilar(t, newMetaData, metaData) {
+				if !isMetaDataSimilar(t, newMetaData, tt.args.metadata) {
 					t.Errorf("not equal metadata = %v, want %v", newMetaData, metaData)
 				}
 
@@ -327,15 +343,11 @@ func TestSetMetadata(t *testing.T) {
 				if err != nil {
 					t.Errorf("could not read chapter data %v", err)
 				}
-				if !isChapterDataSimilar(t, newChapterData, chapterMetaData) {
+				if !isChapterDataSimilar(t, newChapterData, tt.args.chapters) {
 					t.Errorf("not equal chapters = %v, want %v", newChapterData, chapterMetaData)
 				}
 			}
 		})
-	}
-	err = os.Remove(testFilePath)
-	if err != nil {
-		t.Errorf("could not delete file %v", err)
 	}
 }
 

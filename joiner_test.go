@@ -177,6 +177,7 @@ func TestMP3Container_Persist(t *testing.T) {
 		})
 	}
 }
+
 func getFileSizeInBytes(t *testing.T, filePath string) int64 {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -207,9 +208,11 @@ func getMP3TestFolder(t *testing.T) string {
 func generateMP3FileName(t *testing.T) string {
 	filePath := filepath.Join(os.TempDir(), strconv.Itoa(random.Intn(9999999999999))+".mp3")
 	t.Cleanup(func() {
-		err := os.Remove(filePath)
-		if err != nil {
-			t.Errorf("could not delete file %s, %v", filePath, err)
+		if _, err := os.Stat(filePath); err == nil {
+			err := os.Remove(filePath)
+			if err != nil {
+				t.Errorf("could not delete file %s, %v", filePath, err)
+			}
 		}
 	})
 	return filePath
