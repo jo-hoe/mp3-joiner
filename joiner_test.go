@@ -88,11 +88,12 @@ func TestMP3Container_Persist(t *testing.T) {
 		path string
 	}
 	tests := []struct {
-		name                    string
-		c                       *MP3Container
-		args                    args
-		expectedLengthInSeconds float64
-		wantErr                 bool
+		name                     string
+		c                        *MP3Container
+		args                     args
+		expectedLengthInSeconds  float64
+		expectedNumberOfChapters int
+		wantErr                  bool
 	}{
 		{
 			name: "sections test",
@@ -106,8 +107,9 @@ func TestMP3Container_Persist(t *testing.T) {
 			args: args{
 				path: generateMP3FileName(t),
 			},
-			expectedLengthInSeconds: 5,
-			wantErr:                 false,
+			expectedLengthInSeconds:  5,
+			expectedNumberOfChapters: 1,
+			wantErr:                  false,
 		}, {
 			name: "sub second test",
 			c: createContainer(t, []SecondsWindow{{
@@ -117,8 +119,9 @@ func TestMP3Container_Persist(t *testing.T) {
 			args: args{
 				path: generateMP3FileName(t),
 			},
-			expectedLengthInSeconds: 1.5,
-			wantErr:                 false,
+			expectedLengthInSeconds:  1.5,
+			expectedNumberOfChapters: 1,
+			wantErr:                  false,
 		}, {
 			name: "complete file test",
 			c: createContainer(t, []SecondsWindow{{
@@ -128,16 +131,18 @@ func TestMP3Container_Persist(t *testing.T) {
 			args: args{
 				path: generateMP3FileName(t),
 			},
-			expectedLengthInSeconds: 1059.89,
-			wantErr:                 false,
+			expectedLengthInSeconds:  1059.89,
+			expectedNumberOfChapters: 4,
+			wantErr:                  false,
 		}, {
 			name: "file not available",
 			c:    createContainer(t, make([]SecondsWindow, 0)),
 			args: args{
 				path: "dummy 1",
 			},
-			expectedLengthInSeconds: 0,
-			wantErr:                 true,
+			expectedLengthInSeconds:  -1,
+			expectedNumberOfChapters: -1,
+			wantErr:                  true,
 		},
 	}
 	for _, tt := range tests {
@@ -165,8 +170,8 @@ func TestMP3Container_Persist(t *testing.T) {
 				if err != nil {
 					t.Errorf("MP3Container.Persist() could not read chapters = %v", err)
 				}
-				if len(chapters) < 1 {
-					t.Errorf("MP3Container.Persist() chapters are missing = %v", err)
+				if len(chapters) != tt.expectedNumberOfChapters {
+					t.Errorf("MP3Container.Persist() expected number of chapters = %v, actual %v", tt.expectedNumberOfChapters, len(chapters))
 				}
 			}
 		})
