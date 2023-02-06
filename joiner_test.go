@@ -96,7 +96,7 @@ func TestMP3Container_Persist(t *testing.T) {
 		wantErr                  bool
 	}{
 		{
-			name: "sections test",
+			name: "multiple sections test",
 			c: createContainer(t, []SecondsWindow{{
 				start: 1,
 				end:   2,
