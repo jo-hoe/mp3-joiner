@@ -80,6 +80,7 @@ func setMetadataWithBitrate(mp3Filepath string, metadata map[string]string, chap
 	tempFile := filepath.Join(os.TempDir(), strconv.Itoa(random.Intn(9999999999999))+".mp3")
 
 	// ffmpeg -i INPUT.mp3 -i MATADATA -map_chapters 1 -map_metadata 1 -b:a 32k -codec copy OUTPUT.mp3
+	// https://github.com/u2takey/ffmpeg-go/search?q=multiple+input&type=issues
 	err = ffmpeg.Input(tempMetadataFile, ffmpeg.KwArgs{"map_metadata": "1", "map_chapters": "1", "i": mp3Filepath}).
 		Output(tempFile, ffmpeg.KwArgs{"b:a": fmt.Sprintf("%dk", int(bitrate/1000)), "codec": "copy"}).Run()
 	if err != nil {
