@@ -169,6 +169,51 @@ func Test_mergeChapters(t *testing.T) {
 				},
 				cachedMultipicator: 1000,
 			}},
+		},{
+			name: "positive test",
+			args: args{
+				chapters: []Chapter{
+					{
+						TimeBase: "1/1000",
+						Start:    0,
+						End:      15000,
+						Tags: Tags{
+							Title: "First",
+						},
+					}, {
+						TimeBase: "1/1000",
+						Start:    15000,
+						End:      20000,
+						Tags: Tags{
+							Title: "First",
+						},
+					},{
+						TimeBase: "1/1000",
+						Start:    20000,
+						End:      30000,
+						Tags: Tags{
+							Title: "Second",
+						},
+					},
+				},
+			},
+			wantResult: []Chapter{{
+				TimeBase: "1/1000",
+				Start:    0,
+				End:      20000,
+				Tags: Tags{
+					Title: "First",
+				},
+				cachedMultipicator: 1000,
+			},{
+				TimeBase: "1/1000",
+				Start:    20000,
+				End:      30000,
+				Tags: Tags{
+					Title: "Second",
+				},
+				cachedMultipicator: 0,
+			}},
 		},
 	}
 	for _, tt := range tests {
