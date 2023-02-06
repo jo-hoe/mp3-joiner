@@ -62,6 +62,8 @@ func ffprobe(mp3Filepath string, args ffmpeg.KwArgs, v any) (err error) {
 	return json.Unmarshal([]byte(output), v)
 }
 
+// this creates a new temp file and replaces the initial file
+// afterwards it might be possible to apply the metadata in the step
 func SetMetadata(mp3Filepath string, metadata map[string]string, chapters []Chapter) (err error) {
 	bitrate, err := GetBitrate(mp3Filepath)
 	if err != nil {
@@ -80,12 +82,13 @@ func setMetadataWithBitrate(mp3Filepath string, metadata map[string]string, chap
 	tempFile := filepath.Join(os.TempDir(), strconv.Itoa(random.Intn(9999999999999))+".mp3")
 
 	// ffmpeg -i INPUT.mp3 -i MATADATA -map_chapters 1 -map_metadata 1 -b:a 32k -codec copy OUTPUT.mp3
-	// https://github.com/u2takey/ffmpeg-go/search?q=multiple+input&type=issues
 	mp3Input := ffmpeg.Input(mp3Filepath)
 	metadataInput := ffmpeg.Input(tempMetadataFile)
 	command := ffmpeg.Output([]*ffmpeg.Stream{mp3Input, metadataInput}, tempFile, ffmpeg.KwArgs{"map_metadata": "1", "map_chapters": "1", "b:a": fmt.Sprintf("%dk", int(bitrate/1000)), "codec": "copy"}).
 		Compile()
-	command.Args = filteParameter(command.Args, "-map")
+	// removed unused map parameters
+	command.Args = removeParameters(command.Args, "-map", "0")
+	command.Args = removeParameters(command.Args, "-map", "1")
 	err = command.Run()
 	if err != nil {
 		return err
@@ -93,18 +96,6 @@ func setMetadataWithBitrate(mp3Filepath string, metadata map[string]string, chap
 	defer deleteFile(tempFile)
 
 	return overwriteFile(tempFile, mp3Filepath)
-}
-
-func filteParameter(parameterList []string, itemToDelete string) []string {
-	var result = make([]string, 0)
-	for i := 0; i < len(parameterList); i++ {
-		if parameterList[i] != itemToDelete {
-			result = append(result, parameterList[i])
-		} else {
-			i = i + 1
-		}
-	}
-	return result
 }
 
 func deleteFile(filePath string) {
