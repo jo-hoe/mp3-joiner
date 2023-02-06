@@ -26,7 +26,9 @@ func (c *MP3Container) Persist(path string) (err error) {
 
 	// -v 0 = set 0 video stream
 	// -a 1 = set 1 audio stream
-	err = ffmpeg.Concat(c.streams, ffmpeg.KwArgs{"a": 1, "v": 0}).Output(path, ffmpeg.KwArgs{"b:a": fmt.Sprintf("%dk", int(c.bitrate/1000))}).Run()
+	err = ffmpeg.Concat(c.streams, ffmpeg.KwArgs{"a": 1, "v": 0}).
+		Output(path, ffmpeg.KwArgs{"b:a": fmt.Sprintf("%dk", int(c.bitrate/1000))}).
+		Run()
 	if err != nil {
 		return err
 	}
