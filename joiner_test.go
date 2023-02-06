@@ -161,6 +161,13 @@ func TestMP3Container_Persist(t *testing.T) {
 				if (float64(fileSize) / expectedSize) < 0.95 {
 					t.Errorf("MP3Container.Persist() file did not have approximated size, expected %v, actual %v", expectedSize, fileSize)
 				}
+				chapters, err := GetChapterMetadata(tt.args.path)
+				if err != nil {
+					t.Errorf("MP3Container.Persist() could not read chapters = %v", err)
+				}
+				if len(chapters) < 1 {
+					t.Errorf("MP3Container.Persist() chapters are missing = %v", err)
+				}
 			}
 		})
 	}
