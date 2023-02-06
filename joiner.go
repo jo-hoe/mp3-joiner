@@ -31,6 +31,9 @@ func (c *MP3Container) Persist(path string) (err error) {
 		return err
 	}
 
+	// this creates a new file and replaces the initial file
+	// it might be possible to apply the metadata in the step
+	// above and remove the need for this time consuming step
 	c.chapters = mergeChapters(c.chapters)
 	err = setMetadataWithBitrate(path, c.metaData, c.chapters, c.bitrate)
 
