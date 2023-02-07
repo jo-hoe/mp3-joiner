@@ -17,9 +17,11 @@ import (
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
-var ILLEGAL_METADATA_CHARATERS = regexp.MustCompile(`(#|;|=|\\)`)
-var FFMPEG_STATS_REGEX = regexp.MustCompile(`.+time=(?:.*)([0-9]{2,99}):([0-9]{2}):([0-9]{2}).([0-9]{2})`)
-var random = rand.New(rand.NewSource(time.Now().UnixNano()))
+var (
+	ILLEGAL_METADATA_CHARATERS = regexp.MustCompile(`(#|;|=|\\)`)
+	FFMPEG_STATS_REGEX         = regexp.MustCompile(`.+time=(?:.*)([0-9]{2,99}):([0-9]{2}):([0-9]{2}).([0-9]{2})`)
+	random                     = rand.New(rand.NewSource(time.Now().UnixNano()))
+)
 
 type chapters struct {
 	Chapters []Chapter `json:"chapters,omitempty"`

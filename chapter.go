@@ -54,20 +54,20 @@ func (c *Chapter) getCachedMultipicator() int {
 	return c.cachedMultipicator
 }
 
-func (c *Chapter) getStartTimeInSeconds() float64 {
+func (c *Chapter) GetStartTimeInSeconds() float64 {
 	return float64(c.Start) / float64(c.getCachedMultipicator())
 }
 
-func (c *Chapter) getEndTimeInSeconds() float64 {
+func (c *Chapter) GetEndTimeInSeconds() float64 {
 	return float64(c.End) / float64(c.getCachedMultipicator())
 }
 
-func (c *Chapter) setStartTime(seconds float64) {
+func (c *Chapter) SetStartTime(seconds float64) {
 	intermediate := int(seconds * float64(c.getCachedMultipicator()))
 	c.Start = intermediate
 }
 
-func (c *Chapter) setEndTime(seconds float64) {
+func (c *Chapter) SetEndTime(seconds float64) {
 	intermediate := int(seconds * float64(c.getCachedMultipicator()))
 	c.End = intermediate
 }
@@ -78,11 +78,11 @@ func getChapterInTimeFrame(chapters []Chapter, startInSeconds float64, endInSeco
 	// add all chapters which are in frame
 	for _, chapter := range chapters {
 		if isChapterInTimeFrame(chapter, startInSeconds, endInSeconds) {
-			if chapter.getStartTimeInSeconds() < startInSeconds {
-				chapter.setStartTime(startInSeconds)
+			if chapter.GetStartTimeInSeconds() < startInSeconds {
+				chapter.SetStartTime(startInSeconds)
 			}
-			if chapter.getEndTimeInSeconds() > endInSeconds {
-				chapter.setEndTime(endInSeconds)
+			if chapter.GetEndTimeInSeconds() > endInSeconds {
+				chapter.SetEndTime(endInSeconds)
 			}
 			result = append(result, chapter)
 		}
@@ -97,17 +97,17 @@ func getChapterInTimeFrame(chapters []Chapter, startInSeconds float64, endInSeco
 }
 
 func isChapterInTimeFrame(chapter Chapter, startInSeconds float64, endInSeconds float64) bool {
-	isOutside := chapter.getEndTimeInSeconds() <= startInSeconds || chapter.getStartTimeInSeconds() >= endInSeconds
+	isOutside := chapter.GetEndTimeInSeconds() <= startInSeconds || chapter.GetStartTimeInSeconds() >= endInSeconds
 	if isOutside {
 		return false
 	}
-	isInside := startInSeconds <= chapter.getEndTimeInSeconds() && endInSeconds >= chapter.getEndTimeInSeconds()
+	isInside := startInSeconds <= chapter.GetEndTimeInSeconds() && endInSeconds >= chapter.GetEndTimeInSeconds()
 	if isInside {
 		return true
 	}
 
-	isStartInChapter := startInSeconds >= chapter.getStartTimeInSeconds()
-	isEndInChapter := endInSeconds <= chapter.getEndTimeInSeconds()
+	isStartInChapter := startInSeconds >= chapter.GetStartTimeInSeconds()
+	isEndInChapter := endInSeconds <= chapter.GetEndTimeInSeconds()
 
 	return isStartInChapter || isEndInChapter
 }
@@ -130,7 +130,7 @@ func mergeChapters(chapters []Chapter) (result []Chapter) {
 
 		if result[i].Tags.Title == result[i-1].Tags.Title {
 			// reset end of next item
-			result[i-1].setEndTime(float64(result[i].getEndTimeInSeconds()))
+			result[i-1].SetEndTime(float64(result[i].GetEndTimeInSeconds()))
 
 			// remove current item from slice
 			result = append(result[:i], result[i+1:]...)
