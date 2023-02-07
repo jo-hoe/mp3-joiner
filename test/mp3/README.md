@@ -12,4 +12,4 @@ It has [ID3](https://en.wikipedia.org/wiki/ID3) meta data and contains chapters.
 |00:00:23.900|The Telltale Heart|
 |00:17:32.900|Outro|
 
-Chapters have been created via [overdrive-chapterizer](https://github.com/oczkoisse/overdrive-chapterizer)
+Chapters have been created via [ffmpeg](https://ffmpeg.org/ffmpeg-formats.html#Metadata-1) and the `-map_chapters` parameter.
