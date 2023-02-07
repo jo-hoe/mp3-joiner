@@ -24,22 +24,32 @@ func (c *MP3Container) Persist(path string) (err error) {
 		return fmt.Errorf("no streams to persist")
 	}
 
-	// -v 0 = set 0 video stream
-	// -a 1 = set 1 audio stream
-	err = ffmpeg.Concat(c.streams, ffmpeg.KwArgs{"a": 1, "v": 0}).
-		Output(path, ffmpeg.KwArgs{"b:a": fmt.Sprintf("%dk", int(c.bitrate/1000))}).
-		Run()
+	c.chapters = mergeChapters(c.chapters)
+	tempMetadataFile, err := createTempMetadataFile(c.metaData, c.chapters)
 	if err != nil {
 		return err
 	}
+	defer deleteFile(tempMetadataFile)
 
-	// this creates a new file and replaces the initial file
-	// it might be possible to apply the metadata in the step
-	// above and remove the need for this time consuming step
-	c.chapters = mergeChapters(c.chapters)
-	err = setMetadataWithBitrate(path, c.metaData, c.chapters, c.bitrate)
+	// -v 0 = set 0 video stream
+	// -a 1 = set 1 audio stream
+	streams := ffmpeg.Concat(c.streams, ffmpeg.KwArgs{"a": 1, "v": 0})
+	metadataInput := ffmpeg.Input(tempMetadataFile)
 
-	return err
+	parameters := ffmpeg.KwArgs{
+		// set metadata file index to file after streams
+		"map_metadata": len(c.streams),
+		"map_chapters": len(c.streams),
+		// set bitrate in 100k format
+		"b:a": fmt.Sprintf("%dk", int(c.bitrate/1000)),
+	}
+	command := ffmpeg.Output([]*ffmpeg.Stream{streams, metadataInput}, path, parameters).
+		Compile()
+
+	// remove unneeded mapping parameters
+	// the ffmpeg lib does not support that out of the box yet
+	command.Args = removeParameters(command.Args, "-map", `^[0-9]{0,10}$`)
+	return command.Run()
 }
 
 func (c *MP3Container) AddSection(mp3Filepath string, startInSeconds float64, endInSeconds float64) (err error) {
