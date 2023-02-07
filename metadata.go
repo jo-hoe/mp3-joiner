@@ -87,8 +87,7 @@ func setMetadataWithBitrate(mp3Filepath string, metadata map[string]string, chap
 	command := ffmpeg.Output([]*ffmpeg.Stream{mp3Input, metadataInput}, tempFile, ffmpeg.KwArgs{"map_metadata": "1", "map_chapters": "1", "b:a": fmt.Sprintf("%dk", int(bitrate/1000)), "codec": "copy"}).
 		Compile()
 	// removed unused map parameters
-	command.Args = removeParameters(command.Args, "-map", "0")
-	command.Args = removeParameters(command.Args, "-map", "1")
+	command.Args = removeParameters(command.Args, "-map")
 	err = command.Run()
 	if err != nil {
 		return err
