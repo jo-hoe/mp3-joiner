@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -95,20 +94,6 @@ func setMetadataWithBitrate(mp3Filepath string, metadata map[string]string, chap
 	defer deleteFile(tempFile)
 
 	return overwriteFile(tempFile, mp3Filepath)
-}
-
-func deleteFile(filePath string) {
-	err := os.Remove(filePath)
-	if err != nil {
-		log.Printf("could not delete temp file %s", err)
-	}
-}
-
-func closeFile(file *os.File) {
-	err := file.Close()
-	if err != nil {
-		log.Printf("could not close file %s", err)
-	}
 }
 
 func overwriteFile(inputFilePath, outputFilePath string) (err error) {
