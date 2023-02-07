@@ -1,21 +1,28 @@
 package mp3joiner
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
 
-func removeParameters(parameterList []string, parameterKey string) []string {
+func removeParameters(parameterList []string, parameterKey string, valueRegex string) []string {
 	var result = make([]string, 0)
 
 	for i := 0; i < len(parameterList); i++ {
-		// skip appending key if key = parameter we search for
+		// check if this is the key we search for
 		if parameterList[i] == parameterKey {
-			// skip appanding parameter value in case it follows
-			// the key and is not itself a new parameter
+			// check if following value is a parameter value and not a
+			// new parameter
 			if i+1 < len(parameterList) && !strings.HasPrefix(parameterList[i+1], "-") {
-				i = i + 1
+				// test if parameter value complies with regex
+				match, err := regexp.MatchString(valueRegex, parameterList[i+1])
+				if err == nil && match {
+					i = i + 1
+					continue
+				}
 			}
-		} else {
-			result = append(result, parameterList[i])
 		}
+		result = append(result, parameterList[i])
 	}
 
 	return result
