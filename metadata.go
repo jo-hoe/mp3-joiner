@@ -33,7 +33,7 @@ type stream struct {
 	Bitrate string `json:"bit_rate,omitempty"`
 }
 
-func GetMetadata(mp3Filepath string) (result map[string]string, err error) {
+func GetID3Metadata(mp3Filepath string) (result map[string]string, err error) {
 	var data metadata
 	// ffprobe -hide_banner -v 0 -i input.mp3 -print_format json -show_chapters
 	err = ffprobe(mp3Filepath, ffmpeg.KwArgs{"hide_banner": "", "v": 0, "show_entries": "format", "of": "json"}, &data)
@@ -53,22 +53,44 @@ func GetChapterMetadata(mp3Filepath string) (result []Chapter, err error) {
 	return result, err
 }
 
+func GetLengthInSeconds(mp3Filepath string) (result float64, err error) {
+	output, err := getFFmpegStats(mp3Filepath)
+	if err != nil {
+		return -1, err
+	}
+
+	return parseMP3Length(output)
+}
+
+func GetBitrate(mp3Filepath string) (result int, err error) {
+	var bitrate filemetadata
+	result = -1
+
+	// ffprobe -i .\input.mp3 -v 0 -show_entries stream=bit_rate -print_format json
+	err = ffprobe(mp3Filepath, ffmpeg.KwArgs{"v": 0, "show_entries": "stream", "print_format": "json"}, &bitrate)
+	if err != nil {
+		return result, err
+	}
+
+	return strconv.Atoi(bitrate.Streams[0].Bitrate)
+}
+
+// this creates a new temp file and replaces the initial file
+// afterwards it might be possible to apply the metadata in the step
+func SetID3Metadata(mp3Filepath string, metadata map[string]string, chapters []Chapter) (err error) {
+	bitrate, err := GetBitrate(mp3Filepath)
+	if err != nil {
+		return err
+	}
+	return setMetadataWithBitrate(mp3Filepath, metadata, chapters, bitrate)
+}
+
 func ffprobe(mp3Filepath string, args ffmpeg.KwArgs, v any) (err error) {
 	output, err := ffmpeg.Probe(mp3Filepath, args)
 	if err != nil {
 		return err
 	}
 	return json.Unmarshal([]byte(output), v)
-}
-
-// this creates a new temp file and replaces the initial file
-// afterwards it might be possible to apply the metadata in the step
-func SetMetadata(mp3Filepath string, metadata map[string]string, chapters []Chapter) (err error) {
-	bitrate, err := GetBitrate(mp3Filepath)
-	if err != nil {
-		return err
-	}
-	return setMetadataWithBitrate(mp3Filepath, metadata, chapters, bitrate)
 }
 
 func setMetadataWithBitrate(mp3Filepath string, metadata map[string]string, chapters []Chapter, bitrate int) (err error) {
@@ -167,28 +189,6 @@ func sanitizeMetadata(input string) (output string) {
 	}
 
 	return output
-}
-
-func GetLengthInSeconds(mp3Filepath string) (result float64, err error) {
-	output, err := getFFmpegStats(mp3Filepath)
-	if err != nil {
-		return -1, err
-	}
-
-	return parseMP3Length(output)
-}
-
-func GetBitrate(mp3Filepath string) (result int, err error) {
-	var bitrate filemetadata
-	result = -1
-
-	// ffprobe -i .\input.mp3 -v 0 -show_entries stream=bit_rate -print_format json
-	err = ffprobe(mp3Filepath, ffmpeg.KwArgs{"v": 0, "show_entries": "stream", "print_format": "json"}, &bitrate)
-	if err != nil {
-		return result, err
-	}
-
-	return strconv.Atoi(bitrate.Streams[0].Bitrate)
 }
 
 func getFFmpegStats(mp3Filepath string) (output string, err error) {

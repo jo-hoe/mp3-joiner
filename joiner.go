@@ -19,7 +19,7 @@ func NewMP3() *MP3Container {
 	}
 }
 
-func (c *MP3Container) Persist(path string) (err error) {
+func (c *MP3Container) Create(path string) (err error) {
 	if len(c.streams) < 1 {
 		return fmt.Errorf("no streams to persist")
 	}
@@ -52,7 +52,7 @@ func (c *MP3Container) Persist(path string) (err error) {
 	return command.Run()
 }
 
-func (c *MP3Container) AddSection(mp3Filepath string, startInSeconds float64, endInSeconds float64) (err error) {
+func (c *MP3Container) Append(mp3Filepath string, startInSeconds float64, endInSeconds float64) (err error) {
 	// input validation test
 	if endInSeconds != -1 && startInSeconds > endInSeconds {
 		return fmt.Errorf("start %v set after end %v", startInSeconds, endInSeconds)
@@ -82,7 +82,7 @@ func (c *MP3Container) AddSection(mp3Filepath string, startInSeconds float64, en
 	c.streams = append(c.streams, input)
 
 	if c.metaData == nil {
-		metadata, err := GetMetadata(mp3Filepath)
+		metadata, err := GetID3Metadata(mp3Filepath)
 		if err != nil {
 			return err
 		}

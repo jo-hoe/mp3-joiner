@@ -13,6 +13,261 @@ var (
 	TEST_FILENAME = "edgar-allen-poe-the-telltale-heart-original.mp3"
 )
 
+func TestGetChapterMetadata(t *testing.T) {
+	type args struct {
+		mp3Filepath string
+	}
+	tests := []struct {
+		name            string
+		args            args
+		firstItem       Chapter
+		numberOfResults int
+		wantErr         bool
+	}{
+		{
+			name:            "positive test",
+			args:            args{mp3Filepath: filepath.Join(getMP3TestFolder(t), TEST_FILENAME)},
+			numberOfResults: 4,
+			firstItem: Chapter{
+				TimeBase: "1/1000",
+				Start:    0,
+				End:      16900,
+				Tags: Tags{
+					Title: "LibriVox Introduction",
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotResult, err := GetChapterMetadata(tt.args.mp3Filepath)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetChapterMetadata() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.numberOfResults != len(gotResult) {
+				t.Errorf("GetChapterMetadata() found %v elements, want %v elements", len(gotResult), tt.numberOfResults)
+			}
+			if tt.numberOfResults > 0 {
+				if !reflect.DeepEqual(gotResult[0], tt.firstItem) {
+					t.Errorf("GetChapterMetadata() = %v, want %v", gotResult[0], tt.firstItem)
+				}
+			}
+		})
+	}
+}
+
+func TestGetID3Metadata(t *testing.T) {
+	type args struct {
+		mp3Filepath string
+	}
+	tests := []struct {
+		name       string
+		args       args
+		wantResult map[string]string
+		wantErr    bool
+	}{
+		{
+			name: "positive test",
+			args: args{
+				mp3Filepath: filepath.Join(getMP3TestFolder(t), TEST_FILENAME),
+			},
+			wantResult: map[string]string{
+				"ID3v1 Comment": "Read by John Doyle",
+				"album":         "Librivox Short Ghost and Horror Story Collection Vol. 009",
+				"genre":         "Speech",
+				"title":         "The Tell-Tale Heart",
+				"artist":        "Edgar Allen Poe",
+				"track":         "13/16",
+				"TLEN":          "1060",
+				"encoder":       "Lavf58.76.100",
+			},
+			wantErr: false,
+		}, {
+			name: "non existing file",
+			args: args{
+				mp3Filepath: "",
+			},
+			wantResult: nil,
+			wantErr:    true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotResult, err := GetID3Metadata(tt.args.mp3Filepath)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetID3Metadata() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(gotResult, tt.wantResult) {
+				t.Errorf("GetID3Metadata() = %v, want %v", gotResult, tt.wantResult)
+			}
+		})
+	}
+}
+
+func TestSetID3Metadata(t *testing.T) {
+	testFilePath := generateMP3FileName(t)
+	err := copy(filepath.Join(getMP3TestFolder(t), TEST_FILENAME), testFilePath)
+	checkErr(err, "could not create temp file", t)
+
+	chapterMetaData, err := GetChapterMetadata(testFilePath)
+	if err != nil {
+		t.Errorf("could not create temp file %v", err)
+	}
+	metaData, err := GetID3Metadata(testFilePath)
+	if err != nil {
+		t.Errorf("could not create temp file %v", err)
+	}
+
+	type args struct {
+		mp3Filepath string
+		metadata    map[string]string
+		chapters    []Chapter
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "set same metadata again",
+			args: args{
+				mp3Filepath: testFilePath,
+				metadata:    metaData,
+				chapters:    chapterMetaData,
+			},
+			wantErr: false,
+		}, {
+			name: "set new different",
+			args: args{
+				mp3Filepath: generateMP3FileName(t),
+				metadata:    map[string]string{"title": "test"},
+				chapters: []Chapter{{
+					cachedMultipicator: 0,
+					TimeBase:           "1/1",
+					Start:              1,
+					End:                2,
+					Tags: Tags{
+						Title: "testtitle",
+					},
+				}},
+			},
+			wantErr: true,
+		}, {
+			name: "non existing file",
+			args: args{
+				mp3Filepath: "non existing",
+				metadata:    metaData,
+				chapters:    chapterMetaData,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := SetID3Metadata(tt.args.mp3Filepath, tt.args.metadata, tt.args.chapters); (err != nil) != tt.wantErr {
+				t.Errorf("SetID3Metadata() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantErr == false {
+				newMetaData, err := GetID3Metadata(testFilePath)
+				if err != nil {
+					t.Errorf("could not read metadata %v", err)
+				}
+				if !isMetaDataSimilar(t, newMetaData, tt.args.metadata) {
+					t.Errorf("not equal metadata = %v, want %v", newMetaData, metaData)
+				}
+
+				newChapterData, err := GetChapterMetadata(testFilePath)
+				if err != nil {
+					t.Errorf("could not read chapter data %v", err)
+				}
+				if !isChapterDataSimilar(t, newChapterData, tt.args.chapters) {
+					t.Errorf("not equal chapters = %v, want %v", newChapterData, chapterMetaData)
+				}
+			}
+		})
+	}
+}
+
+func TestGetLengthInSeconds(t *testing.T) {
+	type args struct {
+		mp3Filepath string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    float64
+		wantErr bool
+	}{
+		{
+			name:    "positive test",
+			args:    args{mp3Filepath: filepath.Join(getMP3TestFolder(t), TEST_FILENAME)},
+			want:    1059.89,
+			wantErr: false,
+		}, {
+			name:    "non existing file",
+			args:    args{mp3Filepath: "nofile"},
+			want:    -1,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetLengthInSeconds(tt.args.mp3Filepath)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("getLengthInSeconds() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if math.Abs(tt.want-got) > 0.01 {
+				t.Errorf("getLengthInSeconds() more than 0.01 apart = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+
+func TestGetBitrate(t *testing.T) {
+	type args struct {
+		mp3Filepath string
+	}
+	tests := []struct {
+		name       string
+		args       args
+		wantResult int
+		wantErr    bool
+	}{
+		{
+			name: "positive test",
+			args: args{
+				mp3Filepath: filepath.Join(getMP3TestFolder(t), TEST_FILENAME),
+			},
+			wantResult: 32000,
+			wantErr:    false,
+		}, {
+			name: "non existing file",
+			args: args{
+				mp3Filepath: "",
+			},
+			wantResult: -1,
+			wantErr:    true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotResult, err := GetBitrate(tt.args.mp3Filepath)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetBitrate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if gotResult != tt.wantResult {
+				t.Errorf("GetBitrate() = %v, want %v", gotResult, tt.wantResult)
+			}
+		})
+	}
+}
+
 func Test_createTempMetadataFile(t *testing.T) {
 	type args struct {
 		metadata map[string]string
@@ -61,136 +316,6 @@ func Test_createTempMetadataFile(t *testing.T) {
 				t.Errorf("createTempMetadataFile() expected content:\n'%v', actual content:\n'%v'", tt.wantFileContent, result)
 			}
 			os.Remove(gotMetadataFilepath)
-		})
-	}
-}
-
-func TestGetChapterMetadata(t *testing.T) {
-	type args struct {
-		mp3Filepath string
-	}
-	tests := []struct {
-		name            string
-		args            args
-		firstItem       Chapter
-		numberOfResults int
-		wantErr         bool
-	}{
-		{
-			name:            "positive test",
-			args:            args{mp3Filepath: filepath.Join(getMP3TestFolder(t), TEST_FILENAME)},
-			numberOfResults: 4,
-			firstItem: Chapter{
-				TimeBase: "1/1000",
-				Start:    0,
-				End:      16900,
-				Tags: Tags{
-					Title: "LibriVox Introduction",
-				},
-			},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotResult, err := GetChapterMetadata(tt.args.mp3Filepath)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetChapterMetadata() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if tt.numberOfResults != len(gotResult) {
-				t.Errorf("GetChapterMetadata() found %v elements, want %v elements", len(gotResult), tt.numberOfResults)
-			}
-			if tt.numberOfResults > 0 {
-				if !reflect.DeepEqual(gotResult[0], tt.firstItem) {
-					t.Errorf("GetChapterMetadata() = %v, want %v", gotResult[0], tt.firstItem)
-				}
-			}
-		})
-	}
-}
-
-func TestGetMetadata(t *testing.T) {
-	type args struct {
-		mp3Filepath string
-	}
-	tests := []struct {
-		name       string
-		args       args
-		wantResult map[string]string
-		wantErr    bool
-	}{
-		{
-			name: "positive test",
-			args: args{
-				mp3Filepath: filepath.Join(getMP3TestFolder(t), TEST_FILENAME),
-			},
-			wantResult: map[string]string{
-				"ID3v1 Comment": "Read by John Doyle",
-				"album":         "Librivox Short Ghost and Horror Story Collection Vol. 009",
-				"genre":         "Speech",
-				"title":         "The Tell-Tale Heart",
-				"artist":        "Edgar Allen Poe",
-				"track":         "13/16",
-				"TLEN":          "1060",
-				"encoder":       "Lavf58.76.100",
-			},
-			wantErr: false,
-		}, {
-			name: "non existing file",
-			args: args{
-				mp3Filepath: "",
-			},
-			wantResult: nil,
-			wantErr:    true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotResult, err := GetMetadata(tt.args.mp3Filepath)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetMetadata() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(gotResult, tt.wantResult) {
-				t.Errorf("GetMetadata() = %v, want %v", gotResult, tt.wantResult)
-			}
-		})
-	}
-}
-
-func Test_GetLengthInSeconds(t *testing.T) {
-	type args struct {
-		mp3Filepath string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    float64
-		wantErr bool
-	}{
-		{
-			name:    "positive test",
-			args:    args{mp3Filepath: filepath.Join(getMP3TestFolder(t), TEST_FILENAME)},
-			want:    1059.89,
-			wantErr: false,
-		}, {
-			name:    "non existing file",
-			args:    args{mp3Filepath: "nofile"},
-			want:    -1,
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetLengthInSeconds(tt.args.mp3Filepath)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("getLengthInSeconds() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if math.Abs(tt.want-got) > 0.01 {
-				t.Errorf("getLengthInSeconds() more than 0.01 apart = %v, want %v", got, tt.want)
-			}
 		})
 	}
 }
@@ -267,90 +392,6 @@ func Test_sanitizeMetadata(t *testing.T) {
 	}
 }
 
-func TestSetMetadata(t *testing.T) {
-	testFilePath := generateMP3FileName(t)
-	err := copy(filepath.Join(getMP3TestFolder(t), TEST_FILENAME), testFilePath)
-	checkErr(err, "could not create temp file", t)
-
-	chapterMetaData, err := GetChapterMetadata(testFilePath)
-	if err != nil {
-		t.Errorf("could not create temp file %v", err)
-	}
-	metaData, err := GetMetadata(testFilePath)
-	if err != nil {
-		t.Errorf("could not create temp file %v", err)
-	}
-
-	type args struct {
-		mp3Filepath string
-		metadata    map[string]string
-		chapters    []Chapter
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "set same metadata again",
-			args: args{
-				mp3Filepath: testFilePath,
-				metadata:    metaData,
-				chapters:    chapterMetaData,
-			},
-			wantErr: false,
-		}, {
-			name: "set new different",
-			args: args{
-				mp3Filepath: generateMP3FileName(t),
-				metadata:    map[string]string{"title": "test"},
-				chapters: []Chapter{{
-					cachedMultipicator: 0,
-					TimeBase:           "1/1",
-					Start:              1,
-					End:                2,
-					Tags: Tags{
-						Title: "testtitle",
-					},
-				}},
-			},
-			wantErr: true,
-		}, {
-			name: "non existing file",
-			args: args{
-				mp3Filepath: "non existing",
-				metadata:    metaData,
-				chapters:    chapterMetaData,
-			},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := SetMetadata(tt.args.mp3Filepath, tt.args.metadata, tt.args.chapters); (err != nil) != tt.wantErr {
-				t.Errorf("SetMetadata() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if tt.wantErr == false {
-				newMetaData, err := GetMetadata(testFilePath)
-				if err != nil {
-					t.Errorf("could not read metadata %v", err)
-				}
-				if !isMetaDataSimilar(t, newMetaData, tt.args.metadata) {
-					t.Errorf("not equal metadata = %v, want %v", newMetaData, metaData)
-				}
-
-				newChapterData, err := GetChapterMetadata(testFilePath)
-				if err != nil {
-					t.Errorf("could not read chapter data %v", err)
-				}
-				if !isChapterDataSimilar(t, newChapterData, tt.args.chapters) {
-					t.Errorf("not equal chapters = %v, want %v", newChapterData, chapterMetaData)
-				}
-			}
-		})
-	}
-}
-
 func isMetaDataSimilar(t *testing.T, leftMetadata, rightMetadata map[string]string) bool {
 	leftLength := len(leftMetadata)
 	righLength := len(rightMetadata)
@@ -370,31 +411,6 @@ func isMetaDataSimilar(t *testing.T, leftMetadata, rightMetadata map[string]stri
 		}
 
 		if rightMetadata[key] != leftMetadata[key] {
-			return false
-		}
-	}
-
-	return true
-}
-
-// reencoding results in slightly different lengths
-func isChapterDataSimilar(t *testing.T, leftChapters, rightChapters []Chapter) bool {
-	leftLength := len(leftChapters)
-	righLength := len(rightChapters)
-	if leftLength != righLength {
-		t.Errorf("not equal length chapters new value  = %v, want %v", leftChapters, rightChapters)
-		return false
-	}
-
-	for i := 0; i < righLength; i++ {
-		left := leftChapters[i]
-		right := rightChapters[i]
-
-		if left.Tags.Title != right.Tags.Title || left.TimeBase != right.TimeBase {
-			return false
-		}
-
-		if math.Abs(float64(left.End-right.End)) > 50 || math.Abs(float64(left.Start-right.Start)) > 50 {
 			return false
 		}
 	}
@@ -444,44 +460,29 @@ func Test_overwriteFile(t *testing.T) {
 	}
 }
 
-func TestGetBitrate(t *testing.T) {
-	type args struct {
-		mp3Filepath string
+// reencoding results in slightly different lengths
+func isChapterDataSimilar(t *testing.T, leftChapters, rightChapters []Chapter) bool {
+	leftLength := len(leftChapters)
+	righLength := len(rightChapters)
+	if leftLength != righLength {
+		t.Errorf("not equal length chapters new value  = %v, want %v", leftChapters, rightChapters)
+		return false
 	}
-	tests := []struct {
-		name       string
-		args       args
-		wantResult int
-		wantErr    bool
-	}{
-		{
-			name: "positive test",
-			args: args{
-				mp3Filepath: filepath.Join(getMP3TestFolder(t), TEST_FILENAME),
-			},
-			wantResult: 32000,
-			wantErr:    false,
-		}, {
-			name: "non existing file",
-			args: args{
-				mp3Filepath: "",
-			},
-			wantResult: -1,
-			wantErr:    true,
-		},
+
+	for i := 0; i < righLength; i++ {
+		left := leftChapters[i]
+		right := rightChapters[i]
+
+		if left.Tags.Title != right.Tags.Title || left.TimeBase != right.TimeBase {
+			return false
+		}
+
+		if math.Abs(float64(left.End-right.End)) > 50 || math.Abs(float64(left.Start-right.Start)) > 50 {
+			return false
+		}
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotResult, err := GetBitrate(tt.args.mp3Filepath)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetBitrate() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if gotResult != tt.wantResult {
-				t.Errorf("GetBitrate() = %v, want %v", gotResult, tt.wantResult)
-			}
-		})
-	}
+
+	return true
 }
 
 func checkErr(err error, error_prefix string, t *testing.T) {
