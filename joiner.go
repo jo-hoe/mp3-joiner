@@ -82,7 +82,7 @@ func (c *MP3Container) Append(mp3Filepath string, startInSeconds float64, endInS
 	c.streams = append(c.streams, input)
 
 	if c.metaData == nil {
-		metadata, err := GetID3Metadata(mp3Filepath)
+		metadata, err := GetFFmpegMetadataTag(mp3Filepath)
 		if err != nil {
 			return err
 		}

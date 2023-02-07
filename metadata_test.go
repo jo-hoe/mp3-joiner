@@ -58,7 +58,7 @@ func TestGetChapterMetadata(t *testing.T) {
 	}
 }
 
-func TestGetID3Metadata(t *testing.T) {
+func TestGetFFmpegMetadataTag(t *testing.T) {
 	type args struct {
 		mp3Filepath string
 	}
@@ -95,19 +95,19 @@ func TestGetID3Metadata(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotResult, err := GetID3Metadata(tt.args.mp3Filepath)
+			gotResult, err := GetFFmpegMetadataTag(tt.args.mp3Filepath)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GetID3Metadata() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GetFFmpegMetadataTag() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(gotResult, tt.wantResult) {
-				t.Errorf("GetID3Metadata() = %v, want %v", gotResult, tt.wantResult)
+				t.Errorf("GetFFmpegMetadataTag() = %v, want %v", gotResult, tt.wantResult)
 			}
 		})
 	}
 }
 
-func TestSetID3Metadata(t *testing.T) {
+func TestSetFFmpegMetadataTag(t *testing.T) {
 	testFilePath := generateMP3FileName(t)
 	err := copy(filepath.Join(getMP3TestFolder(t), TEST_FILENAME), testFilePath)
 	checkErr(err, "could not create temp file", t)
@@ -116,7 +116,7 @@ func TestSetID3Metadata(t *testing.T) {
 	if err != nil {
 		t.Errorf("could not create temp file %v", err)
 	}
-	metaData, err := GetID3Metadata(testFilePath)
+	metaData, err := GetFFmpegMetadataTag(testFilePath)
 	if err != nil {
 		t.Errorf("could not create temp file %v", err)
 	}
@@ -167,11 +167,11 @@ func TestSetID3Metadata(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := SetID3Metadata(tt.args.mp3Filepath, tt.args.metadata, tt.args.chapters); (err != nil) != tt.wantErr {
-				t.Errorf("SetID3Metadata() error = %v, wantErr %v", err, tt.wantErr)
+			if err := SetFFmpegMetadataTag(tt.args.mp3Filepath, tt.args.metadata, tt.args.chapters); (err != nil) != tt.wantErr {
+				t.Errorf("SetFFmpegMetadataTag() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if tt.wantErr == false {
-				newMetaData, err := GetID3Metadata(testFilePath)
+				newMetaData, err := GetFFmpegMetadataTag(testFilePath)
 				if err != nil {
 					t.Errorf("could not read metadata %v", err)
 				}
@@ -226,7 +226,6 @@ func TestGetLengthInSeconds(t *testing.T) {
 		})
 	}
 }
-
 
 func TestGetBitrate(t *testing.T) {
 	type args struct {
