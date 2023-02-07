@@ -33,6 +33,10 @@ type stream struct {
 	Bitrate string `json:"bit_rate,omitempty"`
 }
 
+// Gets a map of MP3 metadata. Note that the ID3 tags and 
+// ffmpeg tags are not equivalent. See this documentation for 
+// the mapping:
+// https://wiki.multimedia.cx/index.php/FFmpeg_Metadata#MP3
 func GetID3Metadata(mp3Filepath string) (result map[string]string, err error) {
 	var data metadata
 	// ffprobe -hide_banner -v 0 -i input.mp3 -print_format json -show_chapters
@@ -75,8 +79,12 @@ func GetBitrate(mp3Filepath string) (result int, err error) {
 	return strconv.Atoi(bitrate.Streams[0].Bitrate)
 }
 
-// this creates a new temp file and replaces the initial file
-// afterwards it might be possible to apply the metadata in the step
+// Sets MP3 metadata. Note that the ID3 tags and 
+// ffmpeg tags are not equivalent. See this documentation 
+// for the mapping:
+// https://wiki.multimedia.cx/index.php/FFmpeg_Metadata#MP3
+// 
+// This function creates a new temp file and replaces the initial file.
 func SetID3Metadata(mp3Filepath string, metadata map[string]string, chapters []Chapter) (err error) {
 	bitrate, err := GetBitrate(mp3Filepath)
 	if err != nil {
