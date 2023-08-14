@@ -2,7 +2,7 @@ module github.com/jo-hoe/mp3-joiner
 
 go 1.19
 
-require github.com/u2takey/ffmpeg-go v0.4.1
+require github.com/u2takey/ffmpeg-go v0.5.0
 
 require (
 	github.com/aws/aws-sdk-go v1.44.300 // indirect
