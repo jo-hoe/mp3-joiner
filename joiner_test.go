@@ -1,6 +1,7 @@
 package mp3joiner
 
 import (
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -96,8 +97,26 @@ func TestMP3Container_Create(t *testing.T) {
 		wantErr                  bool
 	}{
 		{
-			name: "multiple sections test",
-			c: createContainer(t, []SecondsWindow{{
+			name: "multiple sections with different file test",
+			c: createContainerWithDifferentFiles(t, []SecondsWindow{{
+				start: 1,
+				end:   2,
+			}, {
+				start: 1,
+				end:   5,
+			}, {
+				start: 7,
+				end:   8,
+			}}),
+			args: args{
+				path: generateMP3FileName(t),
+			},
+			expectedLengthInSeconds:  6,
+			expectedNumberOfChapters: 1,
+			wantErr:                  false,
+		}, {
+			name: "multiple sections with same file test",
+			c: createContainerWithSameFile(t, []SecondsWindow{{
 				start: 1,
 				end:   2,
 			}, {
@@ -112,7 +131,7 @@ func TestMP3Container_Create(t *testing.T) {
 			wantErr:                  false,
 		}, {
 			name: "sub second test",
-			c: createContainer(t, []SecondsWindow{{
+			c: createContainerWithSameFile(t, []SecondsWindow{{
 				start: 0,
 				end:   1.5,
 			}}),
@@ -124,7 +143,7 @@ func TestMP3Container_Create(t *testing.T) {
 			wantErr:                  false,
 		}, {
 			name: "complete file test",
-			c: createContainer(t, []SecondsWindow{{
+			c: createContainerWithSameFile(t, []SecondsWindow{{
 				start: 0,
 				end:   -1,
 			}}),
@@ -136,7 +155,7 @@ func TestMP3Container_Create(t *testing.T) {
 			wantErr:                  false,
 		}, {
 			name: "file not available",
-			c:    createContainer(t, make([]SecondsWindow, 0)),
+			c:    createContainerWithSameFile(t, make([]SecondsWindow, 0)),
 			args: args{
 				path: "dummy 1",
 			},
@@ -207,18 +226,11 @@ func getMP3TestFolder(t *testing.T) string {
 
 func generateMP3FileName(t *testing.T) string {
 	filePath := filepath.Join(os.TempDir(), strconv.Itoa(random.Intn(9999999999999))+".mp3")
-	t.Cleanup(func() {
-		if _, err := os.Stat(filePath); err == nil {
-			err := os.Remove(filePath)
-			if err != nil {
-				t.Errorf("could not delete file %s, %v", filePath, err)
-			}
-		}
-	})
+	storeFileForCleanUp(t, filePath)
 	return filePath
 }
 
-func createContainer(t *testing.T, windows []SecondsWindow) *MP3Container {
+func createContainerWithSameFile(t *testing.T, windows []SecondsWindow) *MP3Container {
 	container := NewMP3()
 
 	for _, window := range windows {
@@ -229,4 +241,35 @@ func createContainer(t *testing.T, windows []SecondsWindow) *MP3Container {
 	}
 
 	return container
+}
+
+func createContainerWithDifferentFiles(t *testing.T, windows []SecondsWindow) *MP3Container {
+	container := NewMP3()
+	filenames := make([]string, 0)
+	for _ = range windows {
+		filename := fmt.Sprintf("%s.%s", filepath.Join(os.TempDir(), strconv.Itoa(random.Intn(9999999999999))), "mp3")
+		copy(filepath.Join(getMP3TestFolder(t), testFileName), filename)
+		storeFileForCleanUp(t, filename)
+		filenames = append(filenames, filename)
+	}
+
+	for i, window := range windows {
+		err := container.Append(filenames[i], window.start, window.end)
+		if err != nil {
+			t.Errorf("could not add section %v", err)
+		}
+	}
+
+	return container
+}
+
+func storeFileForCleanUp(t *testing.T, filename string) {
+	t.Cleanup(func() {
+		if _, err := os.Stat(filename); err == nil {
+			err := os.Remove(filename)
+			if err != nil {
+				t.Errorf("could not delete file %s, %v", filename, err)
+			}
+		}
+	})
 }

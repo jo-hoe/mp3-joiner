@@ -29,7 +29,14 @@ func (c *MP3Container) Create(path string) (err error) {
 	if err != nil {
 		return err
 	}
-	defer deleteFile(tempMetadataFile)
+
+	defer func() {
+		deleteFile(tempMetadataFile)
+		// check if copying was successful
+		if err != nil {
+			return
+		}
+	}()
 
 	// -v 0 = set 0 video stream
 	// -a 1 = set 1 audio stream
