@@ -130,6 +130,21 @@ func TestMP3Container_Create(t *testing.T) {
 			expectedNumberOfChapters: 1,
 			wantErr:                  false,
 		}, {
+			name: "repeat same file and same section",
+			c: createContainerWithSameFile(t, []SecondsWindow{{
+				start: 0,
+				end:   2,
+			}, {
+				start: 0,
+				end:   2,
+			}}),
+			args: args{
+				path: generateMP3FileName(t),
+			},
+			expectedLengthInSeconds:  4,
+			expectedNumberOfChapters: 1,
+			wantErr:                  false,
+		}, {
 			name: "sub second test",
 			c: createContainerWithSameFile(t, []SecondsWindow{{
 				start: 0,

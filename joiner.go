@@ -19,6 +19,18 @@ func NewMP3() *MP3Container {
 	}
 }
 
+func (c *MP3Container) uniqueStreamSize() int {
+	result := 0
+
+	streamHashes := make(map[int]bool)
+	for _, stream := range c.streams {
+		streamHashes[stream.Hash()] = true
+	}
+	result = len(streamHashes)
+
+	return result
+}
+
 func (c *MP3Container) Create(path string) (err error) {
 	if len(c.streams) < 1 {
 		return fmt.Errorf("no streams to persist")
@@ -43,10 +55,11 @@ func (c *MP3Container) Create(path string) (err error) {
 	streams := ffmpeg.Concat(c.streams, ffmpeg.KwArgs{"a": 1, "v": 0})
 	metadataInput := ffmpeg.Input(tempMetadataFile)
 
+	numberOfStreams := c.uniqueStreamSize()
 	parameters := ffmpeg.KwArgs{
 		// set metadata file index to file after streams
-		"map_metadata": len(c.streams),
-		"map_chapters": len(c.streams),
+		"map_metadata": numberOfStreams,
+		"map_chapters": numberOfStreams,
 		// set bitrate in 100k format
 		"b:a": fmt.Sprintf("%dk", int(c.bitrate/1000)),
 	}
