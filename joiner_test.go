@@ -261,9 +261,12 @@ func createContainerWithSameFile(t *testing.T, windows []SecondsWindow) *MP3Cont
 func createContainerWithDifferentFiles(t *testing.T, windows []SecondsWindow) *MP3Container {
 	container := NewMP3()
 	filenames := make([]string, 0)
-	for _ = range windows {
+	for range windows {
 		filename := fmt.Sprintf("%s.%s", filepath.Join(os.TempDir(), strconv.Itoa(random.Intn(9999999999999))), "mp3")
-		copy(filepath.Join(getMP3TestFolder(t), testFileName), filename)
+		err := copy(filepath.Join(getMP3TestFolder(t), testFileName), filename)
+		if err != nil {
+			t.Errorf("could copy file %v", err)
+		}
 		storeFileForCleanUp(t, filename)
 		filenames = append(filenames, filename)
 	}
