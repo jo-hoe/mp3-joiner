@@ -1,6 +1,6 @@
 module github.com/jo-hoe/mp3-joiner
 
-go 1.19
+go 1.22
 
 require github.com/u2takey/ffmpeg-go v0.4.1
 
