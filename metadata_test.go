@@ -31,7 +31,7 @@ func TestGetChapterMetadata(t *testing.T) {
 			firstItem: Chapter{
 				TimeBase: "1/1000",
 				Start:    0,
-				End:      16900,
+				End:      16850,
 				Tags: Tags{
 					Title: "LibriVox Introduction",
 				},
@@ -81,7 +81,7 @@ func TestGetFFmpegMetadataTag(t *testing.T) {
 				"artist":        "Edgar Allen Poe",
 				"track":         "13/16",
 				"TLEN":          "1060",
-				"encoder":       "Lavf58.76.100",
+				"encoder":       "Lavf61.1.100",
 			},
 			wantErr: false,
 		}, {
@@ -206,7 +206,7 @@ func TestGetLengthInSeconds(t *testing.T) {
 			args:    args{mp3Filepath: filepath.Join(getMP3TestFolder(t), TEST_FILENAME)},
 			want:    1059.89,
 			wantErr: false,
-		}, {
+		},{
 			name:    "non existing file",
 			args:    args{mp3Filepath: "nofile"},
 			want:    -1,
@@ -221,7 +221,7 @@ func TestGetLengthInSeconds(t *testing.T) {
 				return
 			}
 			if math.Abs(tt.want-got) > 0.01 {
-				t.Errorf("getLengthInSeconds() more than 0.01 apart = %v, want %v", got, tt.want)
+				t.Errorf("getLengthInSeconds() more than 0.01 apart - found length was: %v, expected was: %v", got, tt.want)
 			}
 		})
 	}
@@ -337,7 +337,7 @@ func Test_parseMP3Length(t *testing.T) {
 			want:    7322.02,
 			wantErr: false,
 		}, {
-			name: "positive test",
+			name: "not parsable size",
 			args: args{
 				ffmpegStats: "size=N/A time=xx:02:02.02 bitrate=N/A speed=2.05e+03x",
 			},
