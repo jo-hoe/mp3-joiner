@@ -209,7 +209,8 @@ func getFFmpegStats(mp3Filepath string) (output string, err error) {
 	// -f null - : specifies that there should not be an output file and the output should be redirected to stdout
 	command := ffmpeg.Input(mp3Filepath, ffmpeg.KwArgs{"v": "quiet", "format": "null", "stats": "", "": ""}).
 		WithErrorOutput(outputBuffer).Compile()
-	// inject -map 0:a 
+	// injects -map 0:a
+	// with this inject the returned length directly depends on length of audio stream
 	modifiedArgs := append([]string{"ffmpeg", "-map", "0:a"}, command.Args[1:]...)
 	command.Args = modifiedArgs
 	err = command.Run()
