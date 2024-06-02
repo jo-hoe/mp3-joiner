@@ -59,6 +59,10 @@ func GetChapterMetadata(mp3Filepath string) (result []Chapter, err error) {
 	return result, err
 }
 
+// This function does not read the length from the metadata of the file,
+// as metadata and actual length can be inconsistent. Instead this implementation
+// decodes the file and returns the actual length of the audio stream.
+// This is slower but more accurate then reading the length from the metadata.
 func GetLengthInSeconds(mp3Filepath string) (result float64, err error) {
 	output, err := getFFmpegStats(mp3Filepath)
 	if err != nil {
