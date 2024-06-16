@@ -8,17 +8,34 @@
 
 Allow the merge of MP3 files while honoring chapter meta data.
 
-[How to apply chapters](https://dev.to/montekaka/add-chapter-markers-to-podcast-audio-using-ffmpeg-3c46)
+## Example
 
-## Linting
+```go
+package main
+
+import (
+ "github.com/jo-hoe/mp3-joiner"
+)
+
+func main() {
+ builder := NewMP3Builder()
+ builder.Append("/path/to/myAudioFile.mp3", 0, 10)
+ builder.Append("/path/to/myOtherAudioFile.mp3", 0, -1)
+ builder.Build("/path/to/mergedAudioFile.mp3")
+}
+```
+
+## Development
+
+### Linting
 
 Project used `golangci-lint` for linting.
 
-### Installation
+#### Installation
 
 <https://golangci-lint.run/usage/install/>
 
-### Execution
+#### Execution
 
 Run the linting locally by executing
 
@@ -27,3 +44,7 @@ golangci-lint run ./...
 ```
 
 in the working directory
+
+## Further Details
+
+- [How to apply chapters](https://dev.to/montekaka/add-chapter-markers-to-podcast-audio-using-ffmpeg-3c46)
