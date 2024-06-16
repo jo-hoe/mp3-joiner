@@ -6,24 +6,28 @@ import (
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
-type MP3Container struct {
+type MP3Builder struct {
 	streams  []*ffmpeg.Stream
 	chapters []Chapter
 	metaData map[string]string
 	bitrate  int
 }
 
-func NewMP3() *MP3Container {
-	return &MP3Container{
+// Builder that holds the added MP3 sections
+func NewMP3Builder() *MP3Builder {
+	// stop to log the ffmpeg compiled commands of the lib as
+	// some commands get changed before execution
+	ffmpeg.LogCompiledCommand = false
+	return &MP3Builder{
 		streams: make([]*ffmpeg.Stream, 0),
 	}
 }
 
-func (c *MP3Container) uniqueStreamSize() int {
+func (b *MP3Builder) uniqueStreamSize() int {
 	result := 0
 
 	streamHashes := make(map[int]bool)
-	for _, stream := range c.streams {
+	for _, stream := range b.streams {
 		streamHashes[stream.Hash()] = true
 	}
 	result = len(streamHashes)
@@ -31,13 +35,14 @@ func (c *MP3Container) uniqueStreamSize() int {
 	return result
 }
 
-func (c *MP3Container) Create(path string) (err error) {
-	if len(c.streams) < 1 {
+// Creates the MP3 file a the chosen path
+func (b *MP3Builder) Build(filePath string) (err error) {
+	if len(b.streams) < 1 {
 		return fmt.Errorf("no streams to persist")
 	}
 
-	c.chapters = mergeChapters(c.chapters)
-	tempMetadataFile, err := createTempMetadataFile(c.metaData, c.chapters)
+	b.chapters = mergeChapters(b.chapters)
+	tempMetadataFile, err := createTempMetadataFile(b.metaData, b.chapters)
 	if err != nil {
 		return err
 	}
@@ -52,18 +57,18 @@ func (c *MP3Container) Create(path string) (err error) {
 
 	// -v 0 = set 0 video stream
 	// -a 1 = set 1 audio stream
-	streams := ffmpeg.Concat(c.streams, ffmpeg.KwArgs{"a": 1, "v": 0})
+	streams := ffmpeg.Concat(b.streams, ffmpeg.KwArgs{"a": 1, "v": 0})
 	metadataInput := ffmpeg.Input(tempMetadataFile)
 
-	numberOfStreams := c.uniqueStreamSize()
+	numberOfStreams := b.uniqueStreamSize()
 	parameters := ffmpeg.KwArgs{
 		// set metadata file index to file after streams
 		"map_metadata": numberOfStreams,
 		"map_chapters": numberOfStreams,
 		// set bitrate in 100k format
-		"b:a": fmt.Sprintf("%dk", int(c.bitrate/1000)),
+		"b:a": fmt.Sprintf("%dk", int(b.bitrate/1000)),
 	}
-	command := ffmpeg.Output([]*ffmpeg.Stream{streams, metadataInput}, path, parameters).
+	command := ffmpeg.Output([]*ffmpeg.Stream{streams, metadataInput}, filePath, parameters).
 		Compile()
 
 	// remove unneeded mapping parameters
@@ -72,7 +77,9 @@ func (c *MP3Container) Create(path string) (err error) {
 	return command.Run()
 }
 
-func (c *MP3Container) Append(mp3Filepath string, startInSeconds float64, endInSeconds float64) (err error) {
+// Adds a MP3 file to the builder.
+// If endInSeconds is set to "-1" the stream will be read until the end of the file.
+func (b *MP3Builder) Append(mp3Filepath string, startInSeconds float64, endInSeconds float64) (err error) {
 	// input validation test
 	if endInSeconds != -1 && startInSeconds > endInSeconds {
 		return fmt.Errorf("start %v set after end %v", startInSeconds, endInSeconds)
@@ -95,25 +102,27 @@ func (c *MP3Container) Append(mp3Filepath string, startInSeconds float64, endInS
 		return err
 	}
 	chaptersInTimeFrame := getChapterInTimeFrame(allChapters, startInSeconds, endPos)
-	c.chapters = chaptersInTimeFrame
+	b.chapters = chaptersInTimeFrame
 
+	// creates an input stream
+	// example command below:
 	// ffmpeg -ss 3 -t 5 -i input.mp3
 	input := ffmpeg.Input(mp3Filepath, ffmpeg.KwArgs{"ss": startInSeconds, "t": endPos - startInSeconds})
-	c.streams = append(c.streams, input)
+	b.streams = append(b.streams, input)
 
-	if c.metaData == nil {
+	if b.metaData == nil {
 		metadata, err := GetFFmpegMetadataTag(mp3Filepath)
 		if err != nil {
 			return err
 		}
-		c.metaData = metadata
+		b.metaData = metadata
 	}
 	bitrate, err := GetBitrate(mp3Filepath)
 	if err != nil {
 		return err
 	}
-	if bitrate > c.bitrate {
-		c.bitrate = bitrate
+	if bitrate > b.bitrate {
+		b.bitrate = bitrate
 	}
 
 	return err

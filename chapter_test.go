@@ -40,7 +40,7 @@ func Test_getChapterInTimeFrame(t *testing.T) {
 					Tags: Tags{
 						Title: "demo",
 					},
-					cachedMultipicator: 1},
+					cachedMultiplicator: 1},
 			},
 		}, {
 			name: "outside before",
@@ -108,7 +108,7 @@ func Test_getChapterInTimeFrame(t *testing.T) {
 					Tags: Tags{
 						Title: "demo",
 					},
-					cachedMultipicator: 1,
+					cachedMultiplicator: 1,
 				},
 				{
 					TimeBase: "1/1",
@@ -117,7 +117,7 @@ func Test_getChapterInTimeFrame(t *testing.T) {
 					Tags: Tags{
 						Title: "demo2",
 					},
-					cachedMultipicator: 1,
+					cachedMultiplicator: 1,
 				}},
 		},
 	}
@@ -140,7 +140,7 @@ func Test_mergeChapters(t *testing.T) {
 		wantResult []Chapter
 	}{
 		{
-			name: "positive test",
+			name: "merge chapters with same name test",
 			args: args{
 				chapters: []Chapter{
 					{
@@ -167,10 +167,10 @@ func Test_mergeChapters(t *testing.T) {
 				Tags: Tags{
 					Title: "First",
 				},
-				cachedMultipicator: 1000,
+				cachedMultiplicator: 1000,
 			}},
-		},{
-			name: "positive test",
+		}, {
+			name: "merge chapters with same name test while leaving other alone",
 			args: args{
 				chapters: []Chapter{
 					{
@@ -187,7 +187,7 @@ func Test_mergeChapters(t *testing.T) {
 						Tags: Tags{
 							Title: "First",
 						},
-					},{
+					}, {
 						TimeBase: "1/1000",
 						Start:    20000,
 						End:      30000,
@@ -204,15 +204,15 @@ func Test_mergeChapters(t *testing.T) {
 				Tags: Tags{
 					Title: "First",
 				},
-				cachedMultipicator: 1000,
-			},{
+				cachedMultiplicator: 1000,
+			}, {
 				TimeBase: "1/1000",
 				Start:    20000,
 				End:      30000,
 				Tags: Tags{
 					Title: "Second",
 				},
-				cachedMultipicator: 0,
+				cachedMultiplicator: 0,
 			}},
 		},
 	}
@@ -225,7 +225,7 @@ func Test_mergeChapters(t *testing.T) {
 	}
 }
 
-func TestChapter_getCachedMultipicator(t *testing.T) {
+func TestChapter_getCachedMultiplicator(t *testing.T) {
 	tests := []struct {
 		name string
 		c    *Chapter
@@ -252,15 +252,15 @@ func TestChapter_getCachedMultipicator(t *testing.T) {
 		}, {
 			name: "cache test",
 			c: &Chapter{
-				cachedMultipicator: 5,
+				cachedMultiplicator: 5,
 			},
 			want: 5,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.c.getCachedMultipicator(); got != tt.want {
-				t.Errorf("Chapter.getCachedMultipicator() = %v, want %v", got, tt.want)
+			if got := tt.c.getCachedMultiplicator(); got != tt.want {
+				t.Errorf("Chapter.getCachedMultiplicator() = %v, want %v", got, tt.want)
 			}
 		})
 	}

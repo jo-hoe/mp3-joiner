@@ -145,10 +145,10 @@ func TestSetFFmpegMetadataTag(t *testing.T) {
 				mp3Filepath: generateMP3FileName(t),
 				metadata:    map[string]string{"title": "test"},
 				chapters: []Chapter{{
-					cachedMultipicator: 0,
-					TimeBase:           "1/1",
-					Start:              1,
-					End:                2,
+					cachedMultiplicator: 0,
+					TimeBase:            "1/1",
+					Start:               1,
+					End:                 2,
 					Tags: Tags{
 						Title: "testtitle",
 					},
@@ -206,7 +206,7 @@ func TestGetLengthInSeconds(t *testing.T) {
 			args:    args{mp3Filepath: filepath.Join(getMP3TestFolder(t), TEST_FILENAME)},
 			want:    1059.89,
 			wantErr: false,
-		},{
+		}, {
 			name:    "non existing file",
 			args:    args{mp3Filepath: "nofile"},
 			want:    -1,

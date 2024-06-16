@@ -17,7 +17,7 @@ type SecondsWindow struct {
 	start, end float64
 }
 
-func TestMP3Container_Append(t *testing.T) {
+func TestMP3Builder_Append(t *testing.T) {
 	type args struct {
 		mp3Filepath    string
 		startInSeconds float64
@@ -25,7 +25,7 @@ func TestMP3Container_Append(t *testing.T) {
 	}
 	tests := []struct {
 		name                string
-		c                   *MP3Container
+		c                   *MP3Builder
 		args                args
 		wantErr             bool
 		streamsCount        int
@@ -33,7 +33,7 @@ func TestMP3Container_Append(t *testing.T) {
 	}{
 		{
 			name: "positive test",
-			c:    NewMP3(),
+			c:    NewMP3Builder(),
 			args: args{
 				mp3Filepath:    filepath.Join(getMP3TestFolder(t), testFileName),
 				startInSeconds: 1,
@@ -44,7 +44,7 @@ func TestMP3Container_Append(t *testing.T) {
 		},
 		{
 			name: "end before start",
-			c:    NewMP3(),
+			c:    NewMP3Builder(),
 			args: args{
 				mp3Filepath:    filepath.Join(getMP3TestFolder(t), testFileName),
 				startInSeconds: 1,
@@ -55,7 +55,7 @@ func TestMP3Container_Append(t *testing.T) {
 		},
 		{
 			name: "non-existing file",
-			c:    NewMP3(),
+			c:    NewMP3Builder(),
 			args: args{
 				mp3Filepath:    "dummy",
 				startInSeconds: 0,
@@ -68,19 +68,19 @@ func TestMP3Container_Append(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := tt.c.Append(tt.args.mp3Filepath, tt.args.startInSeconds, tt.args.endInSeconds); (err != nil) != tt.wantErr {
-				t.Errorf("MP3Container.Append() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("MP3Builder.Append() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if len(tt.c.streams) != tt.streamsCount {
-				t.Errorf("MP3Container.Append() expected %v cached streams, found %v", tt.streamsCount, len(tt.c.streams))
+				t.Errorf("MP3Builder.Append() expected %v cached streams, found %v", tt.streamsCount, len(tt.c.streams))
 			}
 		})
 	}
 }
 
-func TestMP3Container_Create(t *testing.T) {
-	testfilepath := filepath.Join(getMP3TestFolder(t), testFileName)
-	totalFileSize := getFileSizeInBytes(t, testfilepath)
-	totalFileLength, err := GetLengthInSeconds(testfilepath)
+func TestMP3Builder_Build(t *testing.T) {
+	testFilePath := filepath.Join(getMP3TestFolder(t), testFileName)
+	totalFileSize := getFileSizeInBytes(t, testFilePath)
+	totalFileLength, err := GetLengthInSeconds(testFilePath)
 	if err != nil {
 		t.Errorf("cloud not get file length %v", err)
 	}
@@ -90,7 +90,7 @@ func TestMP3Container_Create(t *testing.T) {
 	}
 	tests := []struct {
 		name                     string
-		c                        *MP3Container
+		c                        *MP3Builder
 		args                     args
 		expectedLengthInSeconds  float64
 		expectedNumberOfChapters int
@@ -181,31 +181,31 @@ func TestMP3Container_Create(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.c.Create(tt.args.path); (err != nil) != tt.wantErr {
-				t.Errorf("MP3Container.Create() error = %v, wantErr %v", err, tt.wantErr)
+			if err := tt.c.Build(tt.args.path); (err != nil) != tt.wantErr {
+				t.Errorf("MP3Builder.Build() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !tt.wantErr {
 				actualLength, err := GetLengthInSeconds(tt.args.path)
 				if err != nil {
-					t.Errorf("MP3Container.Create() found error while calculating length = %v", err)
+					t.Errorf("MP3Builder.Build() found error while calculating length = %v", err)
 				}
 				// fuzzy test if expected length is out by 0.1 or more
 				if math.Abs(actualLength-tt.expectedLengthInSeconds) > 0.1 {
-					t.Errorf("MP3Container.Create() expected length = %v, actual length = %v", tt.expectedLengthInSeconds, actualLength)
+					t.Errorf("MP3Builder.Build() expected length = %v, actual length = %v", tt.expectedLengthInSeconds, actualLength)
 				}
 
 				fileSize := getFileSizeInBytes(t, tt.args.path)
 				expectedSize := (float64(totalFileSize) / totalFileLength) * tt.expectedLengthInSeconds
 				// test that resulting file is not less the 95% from expected file size
 				if (float64(fileSize) / expectedSize) < 0.95 {
-					t.Errorf("MP3Container.Create() file did not have approximated size, expected %v, actual %v", expectedSize, fileSize)
+					t.Errorf("MP3Builder.Build() file did not have approximated size, expected %v, actual %v", expectedSize, fileSize)
 				}
 				chapters, err := GetChapterMetadata(tt.args.path)
 				if err != nil {
-					t.Errorf("MP3Container.Create() could not read chapters = %v", err)
+					t.Errorf("MP3Builder.Build() could not read chapters = %v", err)
 				}
 				if len(chapters) != tt.expectedNumberOfChapters {
-					t.Errorf("MP3Container.Create() expected number of chapters = %v, actual %v", tt.expectedNumberOfChapters, len(chapters))
+					t.Errorf("MP3Builder.Build() expected number of chapters = %v, actual %v", tt.expectedNumberOfChapters, len(chapters))
 				}
 			}
 		})
@@ -245,21 +245,21 @@ func generateMP3FileName(t *testing.T) string {
 	return filePath
 }
 
-func createContainerWithSameFile(t *testing.T, windows []SecondsWindow) *MP3Container {
-	container := NewMP3()
+func createContainerWithSameFile(t *testing.T, windows []SecondsWindow) *MP3Builder {
+	builder := NewMP3Builder()
 
 	for _, window := range windows {
-		err := container.Append(filepath.Join(getMP3TestFolder(t), testFileName), window.start, window.end)
+		err := builder.Append(filepath.Join(getMP3TestFolder(t), testFileName), window.start, window.end)
 		if err != nil {
 			t.Errorf("could not add section %v", err)
 		}
 	}
 
-	return container
+	return builder
 }
 
-func createContainerWithDifferentFiles(t *testing.T, windows []SecondsWindow) *MP3Container {
-	container := NewMP3()
+func createContainerWithDifferentFiles(t *testing.T, windows []SecondsWindow) *MP3Builder {
+	builder := NewMP3Builder()
 	filenames := make([]string, 0)
 	for range windows {
 		filename := fmt.Sprintf("%s.%s", filepath.Join(os.TempDir(), strconv.Itoa(random.Intn(9999999999999))), "mp3")
@@ -272,13 +272,13 @@ func createContainerWithDifferentFiles(t *testing.T, windows []SecondsWindow) *M
 	}
 
 	for i, window := range windows {
-		err := container.Append(filenames[i], window.start, window.end)
+		err := builder.Append(filenames[i], window.start, window.end)
 		if err != nil {
 			t.Errorf("could not add section %v", err)
 		}
 	}
 
-	return container
+	return builder
 }
 
 func storeFileForCleanUp(t *testing.T, filename string) {

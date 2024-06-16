@@ -19,7 +19,7 @@ type Chapter struct {
 	End      int    `json:"end,omitempty"`
 	Tags     Tags   `json:"tags,omitempty"`
 
-	cachedMultipicator int
+	cachedMultiplicator int
 }
 
 type Tags struct {
@@ -32,9 +32,9 @@ type metadata struct {
 	} `json:"format,omitempty"`
 }
 
-func (c *Chapter) getCachedMultipicator() int {
-	if c.cachedMultipicator != 0 {
-		return c.cachedMultipicator
+func (c *Chapter) getCachedMultiplicator() int {
+	if c.cachedMultiplicator != 0 {
+		return c.cachedMultiplicator
 	}
 
 	if len(c.TimeBase) == 0 {
@@ -50,25 +50,25 @@ func (c *Chapter) getCachedMultipicator() int {
 	if err != nil {
 		return DEFAULT_TIME_BASE_INT
 	}
-	c.cachedMultipicator = multiplicator
-	return c.cachedMultipicator
+	c.cachedMultiplicator = multiplicator
+	return c.cachedMultiplicator
 }
 
 func (c *Chapter) GetStartTimeInSeconds() float64 {
-	return float64(c.Start) / float64(c.getCachedMultipicator())
+	return float64(c.Start) / float64(c.getCachedMultiplicator())
 }
 
 func (c *Chapter) GetEndTimeInSeconds() float64 {
-	return float64(c.End) / float64(c.getCachedMultipicator())
+	return float64(c.End) / float64(c.getCachedMultiplicator())
 }
 
 func (c *Chapter) SetStartTime(seconds float64) {
-	intermediate := int(seconds * float64(c.getCachedMultipicator()))
+	intermediate := int(seconds * float64(c.getCachedMultiplicator()))
 	c.Start = intermediate
 }
 
 func (c *Chapter) SetEndTime(seconds float64) {
-	intermediate := int(seconds * float64(c.getCachedMultipicator()))
+	intermediate := int(seconds * float64(c.getCachedMultiplicator()))
 	c.End = intermediate
 }
 
