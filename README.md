@@ -6,7 +6,11 @@
 [![Lint Status](https://github.com/jo-hoe/mp3-joiner/workflows/lint/badge.svg)](https://github.com/jo-hoe/mp3-joiner/actions?workflow=lint)
 [![Go Report Card](https://goreportcard.com/badge/github.com/jo-hoe/mp3-joiner)](https://goreportcard.com/report/github.com/jo-hoe/mp3-joiner)
 
-Allow the merge of MP3 files while honoring chapter meta data.
+Allow the merge of MP3 files while honoring chapter metadata. This library requires FFmeg to be installed on the target system.
+
+## Requirements 
+
+- [FFmeg](https://ffmpeg.org/download.html)
 
 ## Example
 
