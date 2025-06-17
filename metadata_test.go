@@ -1,7 +1,6 @@
 package mp3joiner
 
 import (
-	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -314,7 +313,9 @@ func Test_createTempMetadataFile(t *testing.T) {
 			if result != tt.wantFileContent {
 				t.Errorf("createTempMetadataFile() expected content:\n'%v', actual content:\n'%v'", tt.wantFileContent, result)
 			}
-			os.Remove(gotMetadataFilepath)
+			if err := os.Remove(gotMetadataFilepath); err != nil {
+				t.Errorf("could not remove file %v: %v", gotMetadataFilepath, err)
+			}
 		})
 	}
 }
@@ -486,7 +487,7 @@ func isChapterDataSimilar(t *testing.T, leftChapters, rightChapters []Chapter) b
 
 func checkErr(err error, error_prefix string, t *testing.T) {
 	if err != nil {
-		t.Errorf(fmt.Sprintf("%s '%v'", error_prefix, err))
+		t.Errorf("%s '%v'", error_prefix, err)
 	}
 }
 

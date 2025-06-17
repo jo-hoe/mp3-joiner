@@ -8,7 +8,7 @@
 
 Allow the merge of MP3 files while honoring chapter metadata. This library requires FFmeg to be installed on the target system.
 
-## Requirements 
+## Requirements
 
 - [FFmeg](https://ffmpeg.org/download.html)
 

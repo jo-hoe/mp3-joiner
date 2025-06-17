@@ -225,7 +225,11 @@ func getFileSizeInBytes(t *testing.T, filePath string) int64 {
 		return -1
 	}
 
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			t.Errorf("could not close file %s, %v", filePath, err)
+		}
+	}()
 
 	return fileInfo.Size()
 }

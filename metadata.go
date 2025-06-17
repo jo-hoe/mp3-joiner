@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	ILLEGAL_METADATA_CHARATERS = regexp.MustCompile(`(#|;|=|\\)`)
+	ILLEGAL_METADATA_CHARACTERS = regexp.MustCompile(`(#|;|=|\\)`)
 	FFMPEG_STATS_REGEX         = regexp.MustCompile(`.+time=(?:.*)([0-9]{2,99}):([0-9]{2}):([0-9]{2}).([0-9]{2})`)
 	random                     = rand.New(rand.NewSource(time.Now().UnixNano()))
 )
@@ -191,13 +191,13 @@ func sanitizeMetadata(input string) (output string) {
 	// make string "unescaped" not efficent but quick to implement
 	// better would be to look ahead and look behind chars to escape
 	// and only handle these characters
-	output = strings.Replace(input, "\\\\", "\\", -1)
-	output = strings.Replace(output, "\\=", "=", -1)
-	output = strings.Replace(output, "\\;", ";", -1)
-	output = strings.Replace(output, "\\#", "#", -1)
+	output = strings.ReplaceAll(input, "\\\\", "\\")
+	output = strings.ReplaceAll(output, "\\=", "=")
+	output = strings.ReplaceAll(output, "\\;", ";")
+	output = strings.ReplaceAll(output, "\\#", "#")
 
 	// escape complete string
-	matches := ILLEGAL_METADATA_CHARATERS.FindAllStringIndex(output, -1)
+	matches := ILLEGAL_METADATA_CHARACTERS.FindAllStringIndex(output, -1)
 	for i := len(matches) - 1; i >= 0; i-- {
 		output = output[:matches[i][0]] + "\\" + output[matches[i][0]:]
 	}
