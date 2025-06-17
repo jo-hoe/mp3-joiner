@@ -41,7 +41,7 @@ type stream struct {
 // https://wiki.multimedia.cx/index.php/FFmpeg_Metadata#MP3
 func GetFFmpegMetadataTag(mp3Filepath string) (result map[string]string, err error) {
 	var data metadata
-	// ffprobe -hide_banner -v 0 -i input.mp3 -print_format json -show_chapters
+	// ffprobe -hide_banner -v 0 -show_entries format -of json "path/to/file.mp3"
 	err = ffprobe(mp3Filepath, ffmpeg.KwArgs{"hide_banner": "", "v": 0, "show_entries": "format", "of": "json"}, &data)
 	result = data.Format.Tags
 	return result, err
@@ -49,7 +49,7 @@ func GetFFmpegMetadataTag(mp3Filepath string) (result map[string]string, err err
 
 func GetChapterMetadata(mp3Filepath string) (result []Chapter, err error) {
 	var data chapters
-	// ffprobe -hide_banner -v 0 -i input.mp3 -print_format json -show_chapters
+	// ffprobe -hide_banner -v 0 -i "path/to/file.mp3" -print_format json -show_chapters
 	err = ffprobe(mp3Filepath, ffmpeg.KwArgs{"hide_banner": "", "v": 0, "print_format": "json", "show_chapters": ""}, &data)
 	result = data.Chapters
 	// sort by start
