@@ -2,7 +2,6 @@ package mp3joiner
 
 import (
 	"fmt"
-	"os/exec"
 	"strconv"
 	"strings"
 )
@@ -81,9 +80,8 @@ func (b *MP3Builder) Build(filePath string) (err error) {
 		filePath,
 	)
 
-	cmd := exec.Command("ffmpeg", args...)
-	if output, runErr := cmd.CombinedOutput(); runErr != nil {
-		return fmt.Errorf("ffmpeg build failed: %w - output: %s", runErr, string(output))
+	if output, runErr := runCmd("ffmpeg", args...); runErr != nil {
+		return fmt.Errorf("ffmpeg build failed: %w - output: %s", runErr, output)
 	}
 	return nil
 }

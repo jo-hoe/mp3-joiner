@@ -1,13 +1,11 @@
 package mp3joiner
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -125,13 +123,11 @@ func ffprobe(mp3Filepath string, args map[string]any, v any) (err error) {
 	// input file at the end (explicit -i to satisfy some ffprobe builds)
 	cmdArgs = append(cmdArgs, "-i", mp3Filepath)
 
-	cmd := exec.Command("ffprobe", cmdArgs...)
-	output, err := cmd.CombinedOutput()
+	output, err := runCmd("ffprobe", cmdArgs...)
 	if err != nil {
-		// include stderr/stdout in error for debugging
-		return fmt.Errorf("ffprobe failed: %w - output: %s", err, string(output))
+		return fmt.Errorf("ffprobe failed: %w - output: %s", err, output)
 	}
-	return json.Unmarshal(output, v)
+	return json.Unmarshal([]byte(output), v)
 }
 
 func setMetadataWithBitrate(mp3Filepath string, metadata map[string]string, chapters []Chapter, bitrate int) (err error) {
@@ -153,9 +149,8 @@ func setMetadataWithBitrate(mp3Filepath string, metadata map[string]string, chap
 		"-codec", "copy",
 		tempFile,
 	}
-	cmd := exec.Command("ffmpeg", args...)
-	if output, errRun := cmd.CombinedOutput(); errRun != nil {
-		return fmt.Errorf("ffmpeg metadata set failed: %w - output: %s", errRun, string(output))
+	if output, errRun := runCmd("ffmpeg", args...); errRun != nil {
+		return fmt.Errorf("ffmpeg metadata set failed: %w - output: %s", errRun, output)
 	}
 	defer deleteFile(tempFile)
 
@@ -245,15 +240,8 @@ func getFFmpegStats(mp3Filepath string) (output string, err error) {
 		"-stats",
 		"-v", "quiet",
 	}
-	cmd := exec.Command("ffmpeg", args...)
-	buf := new(bytes.Buffer)
-	cmd.Stdout = buf
-	cmd.Stderr = buf
-	if err = cmd.Run(); err != nil {
-		return buf.String(), err
-	}
-
-	return buf.String(), nil
+	output, err = runCmd("ffmpeg", args...)
+	return output, err
 }
 
 func parseMP3Length(ffmpegStats string) (float64, error) {
