@@ -2,12 +2,19 @@ package mp3joiner
 
 import (
 	"fmt"
-
-	ffmpeg "github.com/u2takey/ffmpeg-go"
+	"os/exec"
+	"strconv"
+	"strings"
 )
 
+type segment struct {
+	File     string
+	Start    float64
+	Duration float64
+}
+
 type MP3Builder struct {
-	streams  []*ffmpeg.Stream
+	streams  []segment
 	chapters []Chapter
 	metaData map[string]string
 	bitrate  int
@@ -15,24 +22,9 @@ type MP3Builder struct {
 
 // Builder that holds the added MP3 sections
 func NewMP3Builder() *MP3Builder {
-	// stop to log the ffmpeg compiled commands of the lib as
-	// some commands get changed before execution
-	ffmpeg.LogCompiledCommand = false
 	return &MP3Builder{
-		streams: make([]*ffmpeg.Stream, 0),
+		streams: make([]segment, 0),
 	}
-}
-
-func (b *MP3Builder) uniqueStreamSize() int {
-	result := 0
-
-	streamHashes := make(map[int]bool)
-	for _, stream := range b.streams {
-		streamHashes[stream.Hash()] = true
-	}
-	result = len(streamHashes)
-
-	return result
 }
 
 // Creates the MP3 file a the chosen path
@@ -46,7 +38,6 @@ func (b *MP3Builder) Build(filePath string) (err error) {
 	if err != nil {
 		return err
 	}
-
 	defer func() {
 		deleteFile(tempMetadataFile)
 		// check if copying was successful
@@ -55,26 +46,46 @@ func (b *MP3Builder) Build(filePath string) (err error) {
 		}
 	}()
 
-	// -v 0 = set 0 video stream
-	// -a 1 = set 1 audio stream
-	streams := ffmpeg.Concat(b.streams, ffmpeg.KwArgs{"a": 1, "v": 0})
-	metadataInput := ffmpeg.Input(tempMetadataFile)
-
-	numberOfStreams := b.uniqueStreamSize()
-	parameters := ffmpeg.KwArgs{
-		// set metadata file index to file after streams
-		"map_metadata": numberOfStreams,
-		"map_chapters": numberOfStreams,
-		// set bitrate in 100k format
-		"b:a": fmt.Sprintf("%dk", int(b.bitrate/1000)),
+	// Build ffmpeg args to trim inputs and concat
+	args := make([]string, 0, 32+(len(b.streams)*6))
+	for _, s := range b.streams {
+		args = append(args,
+			"-ss", formatSeconds(s.Start),
+			"-t", formatSeconds(s.Duration),
+			"-i", s.File,
+		)
 	}
-	command := ffmpeg.Output([]*ffmpeg.Stream{streams, metadataInput}, filePath, parameters).
-		Compile()
 
-	// remove unneeded mapping parameters
-	// the ffmpeg lib does not support that out of the box yet
-	command.Args = removeParameters(command.Args, "-map", `^[0-9]{0,10}$`)
-	return command.Run()
+	// Add metadata ffmetadata input; index is after the N audio inputs
+	args = append(args, "-i", tempMetadataFile)
+
+	// Build filter_complex: [0:a][1:a]...concat=n=N:v=0:a=1[aout]
+	var sb strings.Builder
+	for i := range b.streams {
+		sb.WriteString("[" + strconv.Itoa(i) + ":a]")
+	}
+	sb.WriteString(fmt.Sprintf("concat=n=%d:v=0:a=1[aout]", len(b.streams)))
+	filter := sb.String()
+	args = append(args, "-filter_complex", filter)
+	args = append(args, "-map", "[aout]")
+	metadataIndex := len(b.streams) // metadata file comes after N stream inputs
+	args = append(args,
+		"-map_metadata", strconv.Itoa(metadataIndex),
+		"-map_chapters", strconv.Itoa(metadataIndex),
+	)
+
+	// Set audio codec/bitrate and output path
+	args = append(args,
+		"-c:a", "libmp3lame",
+		"-b:a", fmt.Sprintf("%dk", int(b.bitrate/1000)),
+		filePath,
+	)
+
+	cmd := exec.Command("ffmpeg", args...)
+	if output, runErr := cmd.CombinedOutput(); runErr != nil {
+		return fmt.Errorf("ffmpeg build failed: %w - output: %s", runErr, string(output))
+	}
+	return nil
 }
 
 // Adds a MP3 file to the builder.
@@ -104,11 +115,16 @@ func (b *MP3Builder) Append(mp3Filepath string, startInSeconds float64, endInSec
 	chaptersInTimeFrame := getChapterInTimeFrame(allChapters, startInSeconds, endPos)
 	b.chapters = chaptersInTimeFrame
 
-	// creates an input stream
-	// example command below:
-	// ffmpeg -ss 3 -t 5 -i input.mp3
-	input := ffmpeg.Input(mp3Filepath, ffmpeg.KwArgs{"ss": startInSeconds, "t": endPos - startInSeconds})
-	b.streams = append(b.streams, input)
+	// cache segment definition (use -ss/-t before -i for each segment)
+	duration := endPos - startInSeconds
+	if duration < 0 {
+		return fmt.Errorf("calculated negative duration")
+	}
+	b.streams = append(b.streams, segment{
+		File:     mp3Filepath,
+		Start:    startInSeconds,
+		Duration: duration,
+	})
 
 	if b.metaData == nil {
 		metadata, err := GetFFmpegMetadataTag(mp3Filepath)
@@ -126,4 +142,9 @@ func (b *MP3Builder) Append(mp3Filepath string, startInSeconds float64, endInSec
 	}
 
 	return err
+}
+
+func formatSeconds(v float64) string {
+	// ffmpeg accepts simple decimal seconds
+	return strconv.FormatFloat(v, 'f', 3, 64)
 }

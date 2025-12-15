@@ -7,20 +7,19 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
-
-	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
 var (
 	ILLEGAL_METADATA_CHARACTERS = regexp.MustCompile(`(#|;|=|\\)`)
-	FFMPEG_STATS_REGEX         = regexp.MustCompile(`.+time=(?:.*)([0-9]{2,99}):([0-9]{2}):([0-9]{2}).([0-9]{2})`)
-	random                     = rand.New(rand.NewSource(time.Now().UnixNano()))
+	FFMPEG_STATS_REGEX          = regexp.MustCompile(`.+time=(?:.*)([0-9]{2,99}):([0-9]{2}):([0-9]{2}).([0-9]{2})`)
+	random                      = rand.New(rand.NewSource(time.Now().UnixNano()))
 )
 
 type chapters struct {
@@ -42,15 +41,15 @@ type stream struct {
 func GetFFmpegMetadataTag(mp3Filepath string) (result map[string]string, err error) {
 	var data metadata
 	// ffprobe -hide_banner -v 0 -show_entries format -of json "path/to/file.mp3"
-	err = ffprobe(mp3Filepath, ffmpeg.KwArgs{"hide_banner": "", "v": 0, "show_entries": "format", "of": "json"}, &data)
+	err = ffprobe(mp3Filepath, map[string]any{"hide_banner": "", "v": 0, "show_entries": "format", "of": "json"}, &data)
 	result = data.Format.Tags
 	return result, err
 }
 
 func GetChapterMetadata(mp3Filepath string) (result []Chapter, err error) {
 	var data chapters
-	// ffprobe -hide_banner -v 0 -i "path/to/file.mp3" -print_format json -show_chapters
-	err = ffprobe(mp3Filepath, ffmpeg.KwArgs{"hide_banner": "", "v": 0, "print_format": "json", "show_chapters": ""}, &data)
+	// ffprobe -hide_banner -v 0 "path/to/file.mp3" -print_format json -show_chapters
+	err = ffprobe(mp3Filepath, map[string]any{"hide_banner": "", "v": 0, "print_format": "json", "show_chapters": ""}, &data)
 	result = data.Chapters
 	// sort by start
 	sort.SliceStable(result, func(i, j int) bool {
@@ -76,8 +75,8 @@ func GetBitrate(mp3Filepath string) (result int, err error) {
 	var bitrate filemetadata
 	result = -1
 
-	// ffprobe -i .\input.mp3 -v 0 -show_entries stream=bit_rate -print_format json
-	err = ffprobe(mp3Filepath, ffmpeg.KwArgs{"v": 0, "show_entries": "stream", "print_format": "json"}, &bitrate)
+	// ffprobe "input.mp3" -v 0 -show_entries stream -print_format json
+	err = ffprobe(mp3Filepath, map[string]any{"v": 0, "show_entries": "stream=bit_rate", "print_format": "json"}, &bitrate)
 	if err != nil {
 		return result, err
 	}
@@ -99,12 +98,40 @@ func SetFFmpegMetadataTag(mp3Filepath string, metadata map[string]string, chapte
 	return setMetadataWithBitrate(mp3Filepath, metadata, chapters, bitrate)
 }
 
-func ffprobe(mp3Filepath string, args ffmpeg.KwArgs, v any) (err error) {
-	output, err := ffmpeg.Probe(mp3Filepath, args)
-	if err != nil {
-		return err
+func ffprobe(mp3Filepath string, args map[string]any, v any) (err error) {
+	cmdArgs := make([]string, 0, 12)
+
+	// preserve a sensible order of arguments
+	if _, ok := args["hide_banner"]; ok {
+		cmdArgs = append(cmdArgs, "-hide_banner")
 	}
-	return json.Unmarshal([]byte(output), v)
+	if val, ok := args["v"]; ok {
+		cmdArgs = append(cmdArgs, "-v", fmt.Sprintf("%v", val))
+	}
+	if val, ok := args["show_entries"]; ok {
+		cmdArgs = append(cmdArgs, "-show_entries", fmt.Sprintf("%v", val))
+	}
+	// ffprobe supports both -of and -print_format; handle either
+	if val, ok := args["of"]; ok {
+		cmdArgs = append(cmdArgs, "-of", fmt.Sprintf("%v", val))
+	}
+	if val, ok := args["print_format"]; ok {
+		cmdArgs = append(cmdArgs, "-print_format", fmt.Sprintf("%v", val))
+	}
+	if _, ok := args["show_chapters"]; ok {
+		cmdArgs = append(cmdArgs, "-show_chapters")
+	}
+
+	// input file at the end (explicit -i to satisfy some ffprobe builds)
+	cmdArgs = append(cmdArgs, "-i", mp3Filepath)
+
+	cmd := exec.Command("ffprobe", cmdArgs...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// include stderr/stdout in error for debugging
+		return fmt.Errorf("ffprobe failed: %w - output: %s", err, string(output))
+	}
+	return json.Unmarshal(output, v)
 }
 
 func setMetadataWithBitrate(mp3Filepath string, metadata map[string]string, chapters []Chapter, bitrate int) (err error) {
@@ -116,16 +143,19 @@ func setMetadataWithBitrate(mp3Filepath string, metadata map[string]string, chap
 
 	tempFile := filepath.Join(os.TempDir(), strconv.Itoa(random.Intn(9999999999999))+".mp3")
 
-	// ffmpeg -i INPUT.mp3 -i MATADATA -map_chapters 1 -map_metadata 1 -b:a 32k -codec copy OUTPUT.mp3
-	mp3Input := ffmpeg.Input(mp3Filepath)
-	metadataInput := ffmpeg.Input(tempMetadataFile)
-	command := ffmpeg.Output([]*ffmpeg.Stream{mp3Input, metadataInput}, tempFile, ffmpeg.KwArgs{"map_metadata": "1", "map_chapters": "1", "b:a": fmt.Sprintf("%dk", int(bitrate/1000)), "codec": "copy"}).
-		Compile()
-	// removed unused map parameters
-	command.Args = removeParameters(command.Args, "-map", `^[0-9]{0,10}$`)
-	err = command.Run()
-	if err != nil {
-		return err
+	// ffmpeg -i INPUT.mp3 -i METADATA -map_chapters 1 -map_metadata 1 -b:a 32k -codec copy OUTPUT.mp3
+	args := []string{
+		"-i", mp3Filepath,
+		"-i", tempMetadataFile,
+		"-map_metadata", "1",
+		"-map_chapters", "1",
+		"-b:a", fmt.Sprintf("%dk", int(bitrate/1000)),
+		"-codec", "copy",
+		tempFile,
+	}
+	cmd := exec.Command("ffmpeg", args...)
+	if output, errRun := cmd.CombinedOutput(); errRun != nil {
+		return fmt.Errorf("ffmpeg metadata set failed: %w - output: %s", errRun, string(output))
 	}
 	defer deleteFile(tempFile)
 
@@ -206,20 +236,24 @@ func sanitizeMetadata(input string) (output string) {
 }
 
 func getFFmpegStats(mp3Filepath string) (output string, err error) {
-	outputBuffer := new(bytes.Buffer)
+	// Equivalent to:
+	// ffmpeg -i input.mp3 -map 0:a -f null - -stats -v quiet
+	args := []string{
+		"-i", mp3Filepath,
+		"-map", "0:a",
+		"-f", "null", "-",
+		"-stats",
+		"-v", "quiet",
+	}
+	cmd := exec.Command("ffmpeg", args...)
+	buf := new(bytes.Buffer)
+	cmd.Stdout = buf
+	cmd.Stderr = buf
+	if err = cmd.Run(); err != nil {
+		return buf.String(), err
+	}
 
-	// this command will resolve to:
-	// ffmpeg -map 0:a -f null - -stats -v quiet -i input.mp3
-	// -f null - : specifies that there should not be an output file and the output should be redirected to stdout
-	command := ffmpeg.Input(mp3Filepath, ffmpeg.KwArgs{"v": "quiet", "format": "null", "stats": "", "": ""}).
-		WithErrorOutput(outputBuffer).Compile()
-	// injects -map 0:a
-	// with this inject the returned length directly depends on length of audio stream
-	modifiedArgs := append([]string{"ffmpeg", "-map", "0:a"}, command.Args[1:]...)
-	command.Args = modifiedArgs
-	err = command.Run()
-
-	return outputBuffer.String(), err
+	return buf.String(), nil
 }
 
 func parseMP3Length(ffmpegStats string) (float64, error) {
