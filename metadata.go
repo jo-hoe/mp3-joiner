@@ -4,160 +4,133 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
 	"os"
-	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
-	"time"
 )
 
 var (
-	ILLEGAL_METADATA_CHARACTERS = regexp.MustCompile(`(#|;|=|\\)`)
-	FFMPEG_STATS_REGEX          = regexp.MustCompile(`.+time=(?:.*)([0-9]{2,99}):([0-9]{2}):([0-9]{2}).([0-9]{2})`)
-	random                      = rand.New(rand.NewSource(time.Now().UnixNano()))
+	illegalMetadataChars = regexp.MustCompile(`(#|;|=|\\)`)
+	ffmpegStatsRegex     = regexp.MustCompile(`.+time=(?:.*)([0-9]{2,99}):([0-9]{2}):([0-9]{2}).([0-9]{2})`)
 )
 
-type chapters struct {
-	Chapters []Chapter `json:"chapters,omitempty"`
+type ffprobeChapters struct {
+	Chapters []ffprobeChapter `json:"chapters,omitempty"`
 }
 
-type filemetadata struct {
-	Streams []stream `json:"streams,omitempty"`
+type ffprobeStreams struct {
+	Streams []ffprobeStream `json:"streams,omitempty"`
 }
 
-type stream struct {
+type ffprobeStream struct {
 	Bitrate string `json:"bit_rate,omitempty"`
 }
 
-// Gets a map of ffmpeg MP3 metadata tags. Note that the ID3 tags
-// and ffmpeg tags are not equivalent. See this documentation for
-// the mapping:
+// GetFFmpegMetadataTag returns a map of ffmpeg MP3 metadata tags.
+// Note that ID3 tags and ffmpeg tags are not equivalent; see:
 // https://wiki.multimedia.cx/index.php/FFmpeg_Metadata#MP3
-func GetFFmpegMetadataTag(mp3Filepath string) (result map[string]string, err error) {
-	var data metadata
-	// ffprobe -hide_banner -v 0 -show_entries format -of json "path/to/file.mp3"
-	err = ffprobe(mp3Filepath, map[string]any{"hide_banner": "", "v": 0, "show_entries": "format", "of": "json"}, &data)
-	result = data.Format.Tags
-	return result, err
+func GetFFmpegMetadataTag(mp3Filepath string) (map[string]string, error) {
+	var data ffprobeFormat
+	args := []string{"-hide_banner", "-v", "0", "-show_entries", "format", "-of", "json"}
+	if err := ffprobe(mp3Filepath, args, &data); err != nil {
+		return nil, err
+	}
+	return data.Format.Tags, nil
 }
 
-func GetChapterMetadata(mp3Filepath string) (result []Chapter, err error) {
-	var data chapters
-	// ffprobe -hide_banner -v 0 "path/to/file.mp3" -print_format json -show_chapters
-	err = ffprobe(mp3Filepath, map[string]any{"hide_banner": "", "v": 0, "print_format": "json", "show_chapters": ""}, &data)
-	result = data.Chapters
-	// sort by start
-	sort.SliceStable(result, func(i, j int) bool {
-		return result[i].Start < result[j].Start
-	})
-	return result, err
+// GetChapterMetadata returns the chapters embedded in an MP3 file, sorted by start time.
+func GetChapterMetadata(mp3Filepath string) ([]Chapter, error) {
+	var data ffprobeChapters
+	args := []string{"-hide_banner", "-v", "0", "-print_format", "json", "-show_chapters"}
+	if err := ffprobe(mp3Filepath, args, &data); err != nil {
+		return nil, err
+	}
+	result := make([]Chapter, len(data.Chapters))
+	for i, c := range data.Chapters {
+		result[i] = c.toChapter()
+	}
+	sortChaptersByStart(result)
+	return result, nil
 }
 
-// This function does not read the length from the metadata of the file,
-// as metadata and actual length can be inconsistent. Instead this implementation
-// decodes the file and returns the actual length of the audio stream.
-// This is slower but more accurate then reading the length from the metadata.
-func GetLengthInSeconds(mp3Filepath string) (result float64, err error) {
+// GetLengthInSeconds returns the actual decoded length of the audio stream.
+// It decodes the file rather than reading metadata, which is slower but accurate.
+func GetLengthInSeconds(mp3Filepath string) (float64, error) {
 	output, err := getFFmpegStats(mp3Filepath)
 	if err != nil {
 		return -1, err
 	}
-
 	return parseMP3Length(output)
 }
 
-func GetBitrate(mp3Filepath string) (result int, err error) {
-	var bitrate filemetadata
-	result = -1
-
-	// ffprobe "input.mp3" -v 0 -show_entries stream -print_format json
-	err = ffprobe(mp3Filepath, map[string]any{"v": 0, "show_entries": "stream=bit_rate", "print_format": "json"}, &bitrate)
-	if err != nil {
-		return result, err
+// GetBitrate returns the bitrate of the first audio stream in bits per second.
+func GetBitrate(mp3Filepath string) (int, error) {
+	var data ffprobeStreams
+	args := []string{"-v", "0", "-show_entries", "stream=bit_rate", "-print_format", "json"}
+	if err := ffprobe(mp3Filepath, args, &data); err != nil {
+		return 0, err
 	}
-
-	return strconv.Atoi(bitrate.Streams[0].Bitrate)
+	if len(data.Streams) == 0 {
+		return 0, fmt.Errorf("no audio streams found in %s", mp3Filepath)
+	}
+	return strconv.Atoi(data.Streams[0].Bitrate)
 }
 
-// Sets FFmpeg MP3 metadata tag. Note that the ID3 tags and
-// ffmpeg tags are not equivalent. See this documentation
-// for the mapping:
+// SetFFmpegMetadataTag writes metadata tags and chapters to an MP3 file in-place.
+// Note that ID3 tags and ffmpeg tags are not equivalent; see:
 // https://wiki.multimedia.cx/index.php/FFmpeg_Metadata#MP3
-//
-// This function creates a new temp file and replaces the initial file.
-func SetFFmpegMetadataTag(mp3Filepath string, metadata map[string]string, chapters []Chapter) (err error) {
+func SetFFmpegMetadataTag(mp3Filepath string, tags map[string]string, chapters []Chapter) error {
 	bitrate, err := GetBitrate(mp3Filepath)
 	if err != nil {
 		return err
 	}
-	return setMetadataWithBitrate(mp3Filepath, metadata, chapters, bitrate)
+	return setMetadataWithBitrate(mp3Filepath, tags, chapters, bitrate)
 }
 
-func ffprobe(mp3Filepath string, args map[string]any, v any) (err error) {
-	cmdArgs := make([]string, 0, 12)
-
-	// preserve a sensible order of arguments
-	if _, ok := args["hide_banner"]; ok {
-		cmdArgs = append(cmdArgs, "-hide_banner")
-	}
-	if val, ok := args["v"]; ok {
-		cmdArgs = append(cmdArgs, "-v", fmt.Sprintf("%v", val))
-	}
-	if val, ok := args["show_entries"]; ok {
-		cmdArgs = append(cmdArgs, "-show_entries", fmt.Sprintf("%v", val))
-	}
-	// ffprobe supports both -of and -print_format; handle either
-	if val, ok := args["of"]; ok {
-		cmdArgs = append(cmdArgs, "-of", fmt.Sprintf("%v", val))
-	}
-	if val, ok := args["print_format"]; ok {
-		cmdArgs = append(cmdArgs, "-print_format", fmt.Sprintf("%v", val))
-	}
-	if _, ok := args["show_chapters"]; ok {
-		cmdArgs = append(cmdArgs, "-show_chapters")
-	}
-
-	// input file at the end (explicit -i to satisfy some ffprobe builds)
-	cmdArgs = append(cmdArgs, "-i", mp3Filepath)
-
-	output, err := runCmd("ffprobe", cmdArgs...)
+func ffprobe(mp3Filepath string, extraArgs []string, v any) error {
+	args := make([]string, 0, len(extraArgs)+2)
+	args = append(args, extraArgs...)
+	args = append(args, "-i", mp3Filepath)
+	output, err := runCmd("ffprobe", args...)
 	if err != nil {
 		return fmt.Errorf("ffprobe failed: %w - output: %s", err, output)
 	}
 	return json.Unmarshal([]byte(output), v)
 }
 
-func setMetadataWithBitrate(mp3Filepath string, metadata map[string]string, chapters []Chapter, bitrate int) (err error) {
-	tempMetadataFile, err := createTempMetadataFile(metadata, chapters)
+func setMetadataWithBitrate(mp3Filepath string, tags map[string]string, chapters []Chapter, bitrate int) error {
+	tempMetadataFile, err := createTempMetadataFile(tags, chapters)
 	if err != nil {
 		return err
 	}
 	defer deleteFile(tempMetadataFile)
 
-	tempFile := filepath.Join(os.TempDir(), strconv.Itoa(random.Intn(9999999999999))+".mp3")
+	tempFile, err := os.CreateTemp("", "*.mp3")
+	if err != nil {
+		return err
+	}
+	tempFilePath := tempFile.Name()
+	closeFile(tempFile)
+	defer deleteFile(tempFilePath)
 
-	// ffmpeg -i INPUT.mp3 -i METADATA -map_chapters 1 -map_metadata 1 -b:a 32k -codec copy OUTPUT.mp3
 	args := []string{
 		"-i", mp3Filepath,
 		"-i", tempMetadataFile,
 		"-map_metadata", "1",
 		"-map_chapters", "1",
-		"-b:a", fmt.Sprintf("%dk", int(bitrate/1000)),
+		"-b:a", fmt.Sprintf("%dk", bitrate/1000),
 		"-codec", "copy",
-		tempFile,
+		tempFilePath,
 	}
 	if output, errRun := runCmd("ffmpeg", args...); errRun != nil {
 		return fmt.Errorf("ffmpeg metadata set failed: %w - output: %s", errRun, output)
 	}
-	defer deleteFile(tempFile)
 
-	return overwriteFile(tempFile, mp3Filepath)
+	return overwriteFile(tempFilePath, mp3Filepath)
 }
 
-func overwriteFile(inputFilePath, outputFilePath string) (err error) {
+func overwriteFile(inputFilePath, outputFilePath string) error {
 	targetFile, err := os.OpenFile(outputFilePath, os.O_RDWR|os.O_TRUNC, 0755)
 	if err != nil {
 		return err
@@ -169,70 +142,57 @@ func overwriteFile(inputFilePath, outputFilePath string) (err error) {
 	}
 	defer closeFile(sourceFile)
 	_, err = io.Copy(targetFile, sourceFile)
-
 	return err
 }
 
-// Creates an meta data file in the temp folder.
-// This file format is described here:
-// https://ffmpeg.org/ffmpeg-formats.html#Metadata-1
-func createTempMetadataFile(metadata map[string]string, chapters []Chapter) (metadataFilepath string, err error) {
+// createTempMetadataFile writes an ffmpeg metadata file to a temp path and returns it.
+// Format: https://ffmpeg.org/ffmpeg-formats.html#Metadata-1
+func createTempMetadataFile(tags map[string]string, chapters []Chapter) (metadataFilepath string, err error) {
 	tempFile, err := os.CreateTemp("", "ffmpegMetaData")
 	if err != nil {
 		return "", err
 	}
 	defer func() {
-		if _, checkerr := os.Stat(tempFile.Name()); checkerr == nil {
-			err = tempFile.Close()
+		if cerr := tempFile.Close(); cerr != nil && err == nil {
+			err = cerr
 		}
 	}()
 	metadataFilepath = tempFile.Name()
 
-	var stringBuilder strings.Builder
-	stringBuilder.WriteString(";FFMETADATA1")
-
-	for key, value := range metadata {
-		fmt.Fprintf(&stringBuilder, "\n%s=%s", sanitizeMetadata(key), sanitizeMetadata(value))
+	var sb strings.Builder
+	sb.WriteString(";FFMETADATA1")
+	for key, value := range tags {
+		fmt.Fprintf(&sb, "\n%s=%s", sanitizeMetadata(key), sanitizeMetadata(value))
+	}
+	for _, chapter := range chapters {
+		sb.WriteString("\n[CHAPTER]")
+		fmt.Fprintf(&sb, "\nTIMEBASE=%s", sanitizeMetadata(chapter.TimeBase))
+		fmt.Fprintf(&sb, "\nSTART=%d", chapter.Start)
+		fmt.Fprintf(&sb, "\nEND=%d", chapter.End)
+		fmt.Fprintf(&sb, "\ntitle=%s", sanitizeMetadata(chapter.Tags.Title))
 	}
 
-	if len(chapters) > 0 {
-		for _, chapter := range chapters {
-			stringBuilder.WriteString("\n[CHAPTER]")
-			fmt.Fprintf(&stringBuilder, "\nTIMEBASE=%s", sanitizeMetadata(chapter.TimeBase))
-			fmt.Fprintf(&stringBuilder, "\nSTART=%d", chapter.Start)
-			fmt.Fprintf(&stringBuilder, "\nEND=%d", chapter.End)
-			fmt.Fprintf(&stringBuilder, "\ntitle=%s", sanitizeMetadata(chapter.Tags.Title))
-		}
-	}
-
-	_, err = tempFile.WriteString(stringBuilder.String())
+	_, err = tempFile.WriteString(sb.String())
 	return metadataFilepath, err
 }
 
-// Metadata keys or values containing special characters
-// (‘=’, ‘;’, ‘#’, ‘\’ and a newline) will escaped with a
-// backslash ‘\’.
-func sanitizeMetadata(input string) (output string) {
-	// make string "unescaped" not efficent but quick to implement
-	// better would be to look ahead and look behind chars to escape
-	// and only handle these characters
-	output = strings.ReplaceAll(input, "\\\\", "\\")
+// sanitizeMetadata escapes characters that are special in ffmpeg metadata files
+// ('=', ';', '#', '\') with a backslash.
+func sanitizeMetadata(input string) string {
+	// Unescape any already-escaped sequences to avoid double-escaping.
+	output := strings.ReplaceAll(input, "\\\\", "\\")
 	output = strings.ReplaceAll(output, "\\=", "=")
 	output = strings.ReplaceAll(output, "\\;", ";")
 	output = strings.ReplaceAll(output, "\\#", "#")
 
-	// escape complete string
-	matches := ILLEGAL_METADATA_CHARACTERS.FindAllStringIndex(output, -1)
+	matches := illegalMetadataChars.FindAllStringIndex(output, -1)
 	for i := len(matches) - 1; i >= 0; i-- {
 		output = output[:matches[i][0]] + "\\" + output[matches[i][0]:]
 	}
-
 	return output
 }
 
-func getFFmpegStats(mp3Filepath string) (output string, err error) {
-	// Equivalent to:
-	// ffmpeg -i input.mp3 -map 0:a -f null - -stats -v quiet
+func getFFmpegStats(mp3Filepath string) (string, error) {
 	args := []string{
 		"-i", mp3Filepath,
 		"-map", "0:a",
@@ -240,20 +200,14 @@ func getFFmpegStats(mp3Filepath string) (output string, err error) {
 		"-stats",
 		"-v", "quiet",
 	}
-	output, err = runCmd("ffmpeg", args...)
-	return output, err
+	return runCmd("ffmpeg", args...)
 }
 
 func parseMP3Length(ffmpegStats string) (float64, error) {
-	// expected is a multi line output lik this:
-	// size=N/A time=00:00:00.00 bitrate=N/A speed=   0x
-	// size=N/A time=00:17:05.36 bitrate=N/A speed=2.05e+03x
-	// size=N/A time=00:17:39.89 bitrate=N/A speed=2.05e+03x
-	matches := FFMPEG_STATS_REGEX.FindStringSubmatch(ffmpegStats)
+	matches := ffmpegStatsRegex.FindStringSubmatch(ffmpegStats)
 	if len(matches) != 5 {
 		return -1, fmt.Errorf("did not find time in '%s'", ffmpegStats)
 	}
-
 	hours, err := strconv.Atoi(matches[1])
 	if err != nil {
 		return -1, err
@@ -262,7 +216,7 @@ func parseMP3Length(ffmpegStats string) (float64, error) {
 	if err != nil {
 		return -1, err
 	}
-	second, err := strconv.Atoi(matches[3])
+	seconds, err := strconv.Atoi(matches[3])
 	if err != nil {
 		return -1, err
 	}
@@ -270,7 +224,6 @@ func parseMP3Length(ffmpegStats string) (float64, error) {
 	if err != nil {
 		return -1, err
 	}
-	result := (hours * 60 * 60) + (minutes * 60) + (second)
-
-	return float64(result) + (float64(milliseconds) * 0.01), err
+	total := (hours * 3600) + (minutes * 60) + seconds
+	return float64(total) + float64(milliseconds)*0.01, nil
 }

@@ -17,15 +17,13 @@ func runCmd(name string, args ...string) (string, error) {
 }
 
 func deleteFile(filePath string) {
-	err := os.Remove(filePath)
-	if err != nil {
-		log.Printf("could not delete temp file %s", err)
+	if err := os.Remove(filePath); err != nil {
+		log.Printf("could not delete file %s: %v", filePath, err)
 	}
 }
 
 func closeFile(file *os.File) {
-	err := file.Close()
-	if err != nil {
-		log.Printf("could not close file %s", err)
+	if err := file.Close(); err != nil {
+		log.Printf("could not close file %s: %v", file.Name(), err)
 	}
 }

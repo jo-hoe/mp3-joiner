@@ -1,141 +1,126 @@
 package mp3joiner
 
 import (
-	"fmt"
 	"regexp"
 	"sort"
 	"strconv"
 )
 
-var (
-	DEFAULT_TIME_BASE_INT = 1000000000
-	DEFAULT_TIME_BASE     = fmt.Sprintf("1/%d", DEFAULT_TIME_BASE_INT)
-	TIME_BASE_REGEX       = regexp.MustCompile("1/([0-9]*)")
-)
+const defaultTimeBaseInt = 1_000_000_000
 
-type Chapter struct {
-	TimeBase string `json:"time_base,omitempty"`
-	Start    int    `json:"start,omitempty"`
-	End      int    `json:"end,omitempty"`
-	Tags     Tags   `json:"tags,omitempty"`
+var timeBaseRegex = regexp.MustCompile(`1/([0-9]*)`)
 
-	cachedMultiplicator int
-}
-
+// Tags holds the title metadata for a chapter.
 type Tags struct {
 	Title string `json:"title,omitempty"`
 }
 
-type metadata struct {
+// Chapter represents a named time range within an MP3 file.
+type Chapter struct {
+	TimeBase string
+	Start    int
+	End      int
+	Tags     Tags
+}
+
+// ffprobeChapter is the private DTO for deserialising ffprobe chapter JSON.
+type ffprobeChapter struct {
+	TimeBase string `json:"time_base,omitempty"`
+	Start    int    `json:"start,omitempty"`
+	End      int    `json:"end,omitempty"`
+	Tags     Tags   `json:"tags,omitempty"`
+}
+
+func (f ffprobeChapter) toChapter() Chapter {
+	return Chapter(f)
+}
+
+// ffprobeFormat is the private DTO for deserialising ffprobe format output.
+type ffprobeFormat struct {
 	Format struct {
 		Tags map[string]string `json:"tags,omitempty"`
 	} `json:"format,omitempty"`
 }
 
-func (c *Chapter) getCachedMultiplicator() int {
-	if c.cachedMultiplicator != 0 {
-		return c.cachedMultiplicator
+func timeBaseMultiplier(timeBase string) int {
+	if len(timeBase) == 0 {
+		return defaultTimeBaseInt
 	}
-
-	if len(c.TimeBase) == 0 {
-		return DEFAULT_TIME_BASE_INT
-	}
-
-	matches := TIME_BASE_REGEX.FindStringSubmatch(c.TimeBase)
+	matches := timeBaseRegex.FindStringSubmatch(timeBase)
 	if len(matches) != 2 {
-		return DEFAULT_TIME_BASE_INT
+		return defaultTimeBaseInt
 	}
-
-	multiplicator, err := strconv.Atoi(matches[1])
+	multiplier, err := strconv.Atoi(matches[1])
 	if err != nil {
-		return DEFAULT_TIME_BASE_INT
+		return defaultTimeBaseInt
 	}
-	c.cachedMultiplicator = multiplicator
-	return c.cachedMultiplicator
+	return multiplier
 }
 
-func (c *Chapter) GetStartTimeInSeconds() float64 {
-	return float64(c.Start) / float64(c.getCachedMultiplicator())
+// GetStartTimeInSeconds returns the chapter start time in seconds.
+func (c Chapter) GetStartTimeInSeconds() float64 {
+	return float64(c.Start) / float64(timeBaseMultiplier(c.TimeBase))
 }
 
-func (c *Chapter) GetEndTimeInSeconds() float64 {
-	return float64(c.End) / float64(c.getCachedMultiplicator())
+// GetEndTimeInSeconds returns the chapter end time in seconds.
+func (c Chapter) GetEndTimeInSeconds() float64 {
+	return float64(c.End) / float64(timeBaseMultiplier(c.TimeBase))
 }
 
+// SetStartTime sets the chapter start from a value in seconds.
 func (c *Chapter) SetStartTime(seconds float64) {
-	intermediate := int(seconds * float64(c.getCachedMultiplicator()))
-	c.Start = intermediate
+	c.Start = int(seconds * float64(timeBaseMultiplier(c.TimeBase)))
 }
 
+// SetEndTime sets the chapter end from a value in seconds.
 func (c *Chapter) SetEndTime(seconds float64) {
-	intermediate := int(seconds * float64(c.getCachedMultiplicator()))
-	c.End = intermediate
+	c.End = int(seconds * float64(timeBaseMultiplier(c.TimeBase)))
 }
 
-func getChapterInTimeFrame(chapters []Chapter, startInSeconds float64, endInSeconds float64) (result []Chapter) {
-	result = make([]Chapter, 0)
+func (c *Chapter) shiftBy(seconds float64) {
+	m := float64(timeBaseMultiplier(c.TimeBase))
+	c.Start += int(seconds * m)
+	c.End += int(seconds * m)
+}
 
-	// add all chapters which are in frame
-	for _, chapter := range chapters {
-		if isChapterInTimeFrame(chapter, startInSeconds, endInSeconds) {
-			if chapter.GetStartTimeInSeconds() < startInSeconds {
-				chapter.SetStartTime(startInSeconds)
-			}
-			if chapter.GetEndTimeInSeconds() > endInSeconds {
-				chapter.SetEndTime(endInSeconds)
-			}
-			result = append(result, chapter)
-		}
-	}
-
-	// sort by start
-	sort.SliceStable(result, func(i, j int) bool {
-		return result[i].Start < result[j].Start
+func sortChaptersByStart(chapters []Chapter) {
+	sort.SliceStable(chapters, func(i, j int) bool {
+		return chapters[i].Start < chapters[j].Start
 	})
+}
 
+func getChapterInTimeFrame(chapters []Chapter, startInSeconds float64, endInSeconds float64) []Chapter {
+	result := make([]Chapter, 0)
+	for _, chapter := range chapters {
+		if !isChapterInTimeFrame(chapter, startInSeconds, endInSeconds) {
+			continue
+		}
+		if chapter.GetStartTimeInSeconds() < startInSeconds {
+			chapter.SetStartTime(startInSeconds)
+		}
+		if chapter.GetEndTimeInSeconds() > endInSeconds {
+			chapter.SetEndTime(endInSeconds)
+		}
+		result = append(result, chapter)
+	}
+	sortChaptersByStart(result)
 	return result
 }
 
 func isChapterInTimeFrame(chapter Chapter, startInSeconds float64, endInSeconds float64) bool {
-	isOutside := chapter.GetEndTimeInSeconds() <= startInSeconds || chapter.GetStartTimeInSeconds() >= endInSeconds
-	if isOutside {
-		return false
-	}
-	isInside := startInSeconds <= chapter.GetEndTimeInSeconds() && endInSeconds >= chapter.GetEndTimeInSeconds()
-	if isInside {
-		return true
-	}
-
-	isStartInChapter := startInSeconds >= chapter.GetStartTimeInSeconds()
-	isEndInChapter := endInSeconds <= chapter.GetEndTimeInSeconds()
-
-	return isStartInChapter || isEndInChapter
+	return chapter.GetStartTimeInSeconds() < endInSeconds && chapter.GetEndTimeInSeconds() > startInSeconds
 }
 
-func mergeChapters(chapters []Chapter) (result []Chapter) {
-	result = chapters
-	if len(result) < 2 {
-		return result
+func mergeChapters(chapters []Chapter) []Chapter {
+	if len(chapters) < 2 {
+		return chapters
 	}
-
-	// sort by start
-	sort.SliceStable(result, func(i, j int) bool {
-		return result[i].Start < result[j].Start
-	})
-
-	for i := len(result) - 1; i >= 0; i-- {
-		if i-1 < 0 {
-			return
-		}
-
-		if result[i].Tags.Title == result[i-1].Tags.Title {
-			// reset end of next item
-			result[i-1].SetEndTime(float64(result[i].GetEndTimeInSeconds()))
-
-			// remove current item from slice
-			result = append(result[:i], result[i+1:]...)
+	sortChaptersByStart(chapters)
+	for i := len(chapters) - 1; i >= 1; i-- {
+		if chapters[i].Tags.Title == chapters[i-1].Tags.Title {
+			chapters[i-1].SetEndTime(chapters[i].GetEndTimeInSeconds())
+			chapters = append(chapters[:i], chapters[i+1:]...)
 		}
 	}
-
-	return result
+	return chapters
 }
