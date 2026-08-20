@@ -21,7 +21,8 @@ jobs:
         platform: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.platform }}
     steps:
-    - uses: actions/checkout@v6
+    - name: Checkout code
+      uses: actions/checkout@v4
     - uses: FedericoCarboni/setup-ffmpeg@v3
       id: setup-ffmpeg
     - run: ffmpeg -version
@@ -30,8 +31,6 @@ jobs:
       uses: actions/setup-go@v6
       with:
         go-version: ${{ matrix.go-version }}
-    - name: Checkout code
-      uses: actions/checkout@v6
     - name: Run tests
       run: go test -v ./... -covermode=count -coverprofile=coverage.out
     - name: Convert coverage.out to coverage.lcov
