@@ -115,6 +115,7 @@ func setMetadataWithBitrate(mp3Filepath string, tags map[string]string, chapters
 	defer deleteFile(tempFilePath)
 
 	args := []string{
+		"-y",
 		"-i", mp3Filepath,
 		"-i", tempMetadataFile,
 		"-map_metadata", "1",

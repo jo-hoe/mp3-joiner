@@ -45,6 +45,7 @@ func (b *MP3Builder) Build(filePath string) error {
 	defer deleteFile(tempMetadataFile)
 
 	args := make([]string, 0, 32+(len(b.streams)*6))
+	args = append(args, "-y") // overwrite output if it exists
 	for _, s := range b.streams {
 		args = append(args,
 			"-ss", formatSeconds(s.start),
