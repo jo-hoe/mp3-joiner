@@ -135,6 +135,19 @@ func TestMP3Builder_Build(t *testing.T) {
 			expectedNumberOfChapters: 4,
 			wantErr:                  false,
 		}, {
+			name: "same chapter split with gap merges into one",
+			// Chapter 1 of the test file spans 0–16.85s ("LibriVox Introduction").
+			// Appending 0–8s then 9–16.85s (1s gap) produces two segments both
+			// carrying the same chapter name; mergeChapters must collapse them to 1.
+			c: createContainerWithSameFile(t, []secondsWindow{
+				{start: 0, end: 8},
+				{start: 9, end: 16.85},
+			}),
+			outputPath:               generateMP3FileName(t),
+			expectedLengthInSeconds:  15.85,
+			expectedNumberOfChapters: 1,
+			wantErr:                  false,
+		}, {
 			name:                     "chapter accumulation across multiple files",
 			c:                        createContainerWithChapterAccumulationTest(t),
 			outputPath:               generateMP3FileName(t),
