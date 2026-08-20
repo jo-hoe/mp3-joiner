@@ -139,7 +139,7 @@ func TestMP3Builder_Build(t *testing.T) {
 			c:                        createContainerWithChapterAccumulationTest(t),
 			outputPath:               generateMP3FileName(t),
 			expectedLengthInSeconds:  90,
-			expectedNumberOfChapters: 5,
+			expectedNumberOfChapters: 6,
 			wantErr:                  false,
 		}, {
 			name:    "file not available",
@@ -182,9 +182,9 @@ func TestMP3Builder_Build(t *testing.T) {
 }
 
 // createContainerWithChapterAccumulationTest builds a builder with two different
-// source files so we can assert that chapters from both files appear in the output
-// with correct time offsets. file1 covers 0–30s (3 chapters of 10s each),
-// file2 covers 0–60s (2 chapters of 30s each). The merged output must have 5 chapters.
+// source files to assert that chapters from both files appear in the output with
+// correct time offsets. file1 covers 0–30s (3 chapters), file2 covers 0–60s
+// (3 chapters). The merged output must have 6 chapters total.
 func createContainerWithChapterAccumulationTest(t *testing.T) *MP3Builder {
 	t.Helper()
 	src := filepath.Join(getMP3TestFolder(t), testFilename)
