@@ -192,16 +192,16 @@ func createTempMetadataFile(metadata map[string]string, chapters []Chapter) (met
 	stringBuilder.WriteString(";FFMETADATA1")
 
 	for key, value := range metadata {
-		stringBuilder.WriteString(fmt.Sprintf("\n%s=%s", sanitizeMetadata(key), sanitizeMetadata(value)))
+		fmt.Fprintf(&stringBuilder, "\n%s=%s", sanitizeMetadata(key), sanitizeMetadata(value))
 	}
 
 	if len(chapters) > 0 {
 		for _, chapter := range chapters {
 			stringBuilder.WriteString("\n[CHAPTER]")
-			stringBuilder.WriteString(fmt.Sprintf("\nTIMEBASE=%s", sanitizeMetadata(chapter.TimeBase)))
-			stringBuilder.WriteString(fmt.Sprintf("\nSTART=%d", chapter.Start))
-			stringBuilder.WriteString(fmt.Sprintf("\nEND=%d", chapter.End))
-			stringBuilder.WriteString(fmt.Sprintf("\ntitle=%s", sanitizeMetadata(chapter.Tags.Title)))
+			fmt.Fprintf(&stringBuilder, "\nTIMEBASE=%s", sanitizeMetadata(chapter.TimeBase))
+			fmt.Fprintf(&stringBuilder, "\nSTART=%d", chapter.Start)
+			fmt.Fprintf(&stringBuilder, "\nEND=%d", chapter.End)
+			fmt.Fprintf(&stringBuilder, "\ntitle=%s", sanitizeMetadata(chapter.Tags.Title))
 		}
 	}
 
