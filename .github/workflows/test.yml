@@ -26,7 +26,7 @@ jobs:
     - run: ffmpeg -version
     - name: Install Go
       if: success()
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@v7
       with:
         go-version: ${{ matrix.go-version }}
     - name: Run tests
