@@ -94,7 +94,7 @@ func (b *MP3Builder) Append(mp3Filepath string, startInSeconds, endInSeconds flo
 		endPos = endInSeconds
 	}
 
-	allChapters, err := GetChapterMetadata(mp3Filepath)
+	allChapters, tags, bitrate, err := getFileMetadata(mp3Filepath)
 	if err != nil {
 		return err
 	}
@@ -117,16 +117,7 @@ func (b *MP3Builder) Append(mp3Filepath string, startInSeconds, endInSeconds flo
 	b.accumulatedDuration += duration
 
 	if b.metaData == nil {
-		tags, err := GetFFmpegMetadataTag(mp3Filepath)
-		if err != nil {
-			return err
-		}
 		b.metaData = tags
-	}
-
-	bitrate, err := GetBitrate(mp3Filepath)
-	if err != nil {
-		return err
 	}
 	if bitrate > b.bitrate {
 		b.bitrate = bitrate

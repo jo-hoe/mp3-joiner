@@ -398,3 +398,24 @@ func isChapterDataSimilar(t *testing.T, leftChapters, rightChapters []Chapter) b
 	}
 	return true
 }
+
+func BenchmarkGetLengthInSeconds(b *testing.B) {
+	path := filepath.Join("test", "mp3", testFilename)
+	b.ResetTimer()
+	for b.Loop() {
+		if _, err := GetLengthInSeconds(path); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkAppend(b *testing.B) {
+	path := filepath.Join("test", "mp3", testFilename)
+	b.ResetTimer()
+	for b.Loop() {
+		builder := NewMP3Builder()
+		if err := builder.Append(path, 0, 10); err != nil {
+			b.Fatal(err)
+		}
+	}
+}

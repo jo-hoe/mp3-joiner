@@ -27,6 +27,14 @@ type ffprobeStream struct {
 	Bitrate string `json:"bit_rate,omitempty"`
 }
 
+type ffprobeAllData struct {
+	Streams  []ffprobeStream  `json:"streams,omitempty"`
+	Format   struct {
+		Tags map[string]string `json:"tags,omitempty"`
+	} `json:"format,omitempty"`
+	Chapters []ffprobeChapter `json:"chapters,omitempty"`
+}
+
 // GetFFmpegMetadataTag returns a map of ffmpeg MP3 metadata tags.
 // Note that ID3 tags and ffmpeg tags are not equivalent; see:
 // https://wiki.multimedia.cx/index.php/FFmpeg_Metadata#MP3
@@ -104,6 +112,33 @@ func ffprobe(mp3Filepath string, extraArgs []string, v any) error {
 		return fmt.Errorf("failed to parse ffprobe output: %w", err)
 	}
 	return nil
+}
+
+func getFileMetadata(mp3Filepath string) ([]Chapter, map[string]string, int, error) {
+	var data ffprobeAllData
+	args := []string{
+		"-hide_banner", "-v", "0",
+		"-print_format", "json",
+		"-show_format",
+		"-show_streams",
+		"-show_chapters",
+	}
+	if err := ffprobe(mp3Filepath, args, &data); err != nil {
+		return nil, nil, 0, err
+	}
+	chapters := make([]Chapter, len(data.Chapters))
+	for i, c := range data.Chapters {
+		chapters[i] = c.toChapter()
+	}
+	sortChaptersByStart(chapters)
+	if len(data.Streams) == 0 {
+		return nil, nil, 0, fmt.Errorf("no audio streams found in %s", mp3Filepath)
+	}
+	bitrate, err := strconv.Atoi(data.Streams[0].Bitrate)
+	if err != nil {
+		return nil, nil, 0, fmt.Errorf("failed to parse bitrate: %w", err)
+	}
+	return chapters, data.Format.Tags, bitrate, nil
 }
 
 func setMetadataWithBitrate(mp3Filepath string, tags map[string]string, chapters []Chapter, _ int) error {
