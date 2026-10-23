@@ -30,8 +30,8 @@ type ffprobeStream struct {
 }
 
 type ffprobeAllData struct {
-	Streams  []ffprobeStream `json:"streams,omitempty"`
-	Format   struct {
+	Streams []ffprobeStream `json:"streams,omitempty"`
+	Format  struct {
 		Tags map[string]string `json:"tags,omitempty"`
 	} `json:"format,omitempty"`
 	Chapters []ffprobeChapter `json:"chapters,omitempty"`
