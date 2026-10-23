@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -12,10 +13,7 @@ import (
 
 const ffprobeOutputFormat = "json"
 
-var (
-	illegalMetadataChars = regexp.MustCompile(`(#|;|=|\\)`)
-	ffmpegStatsRegex     = regexp.MustCompile(`.+time=(?:.*)(\d{2,99}):(\d{2}):(\d{2}).(\d{2})`)
-)
+var ffmpegStatsRegex = regexp.MustCompile(`.+time=(?:.*)(\d{2,99}):(\d{2}):(\d{2}).(\d{2})`)
 
 type ffprobeChapters struct {
 	Chapters []ffprobeChapter `json:"chapters,omitempty"`
@@ -108,7 +106,7 @@ func ffprobe(mp3Filepath string, extraArgs []string, v any) error {
 	return nil
 }
 
-func setMetadataWithBitrate(mp3Filepath string, tags map[string]string, chapters []Chapter, bitrate int) error {
+func setMetadataWithBitrate(mp3Filepath string, tags map[string]string, chapters []Chapter, _ int) error {
 	tempMetadataFile, err := createTempMetadataFile(tags, chapters)
 	if err != nil {
 		return err
@@ -129,7 +127,6 @@ func setMetadataWithBitrate(mp3Filepath string, tags map[string]string, chapters
 		"-i", tempMetadataFile,
 		"-map_metadata", "1",
 		"-map_chapters", "1",
-		"-b:a", fmt.Sprintf("%dk", bitrate/1000),
 		"-codec", "copy",
 		tempFilePath,
 	}
@@ -141,18 +138,41 @@ func setMetadataWithBitrate(mp3Filepath string, tags map[string]string, chapters
 }
 
 func overwriteFile(inputFilePath, outputFilePath string) error {
-	targetFile, err := os.OpenFile(outputFilePath, os.O_RDWR|os.O_TRUNC, 0o600) //nolint:gosec // path is controlled by internal callers only
-	if err != nil {
-		return fmt.Errorf("failed to open output file: %w", err)
+	if err := os.Rename(inputFilePath, outputFilePath); err == nil {
+		return nil
 	}
-	defer closeFile(targetFile)
+	// Rename across filesystems fails; fall back to copy-then-replace.
+	// Write to a sibling temp file first so the original is never truncated
+	// before the new content is fully written.
+	dir := filepath.Dir(outputFilePath)
+	tmpFile, err := os.CreateTemp(dir, "overwrite-*.tmp")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file for overwrite: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	defer func() {
+		// clean up the temp file if we did not rename it away
+		if _, serr := os.Stat(tmpPath); serr == nil {
+			os.Remove(tmpPath)
+		}
+	}()
+
 	sourceFile, err := os.Open(inputFilePath) //nolint:gosec // path is controlled by internal callers only
 	if err != nil {
+		tmpFile.Close()
 		return fmt.Errorf("failed to open input file: %w", err)
 	}
-	defer closeFile(sourceFile)
-	if _, err = io.Copy(targetFile, sourceFile); err != nil {
+	if _, err = io.Copy(tmpFile, sourceFile); err != nil {
+		tmpFile.Close()
+		sourceFile.Close()
 		return fmt.Errorf("failed to copy file: %w", err)
+	}
+	sourceFile.Close()
+	if err = tmpFile.Close(); err != nil {
+		return fmt.Errorf("failed to flush temp file: %w", err)
+	}
+	if err = os.Rename(tmpPath, outputFilePath); err != nil {
+		return fmt.Errorf("failed to replace output file: %w", err)
 	}
 	return nil
 }
@@ -193,17 +213,26 @@ func createTempMetadataFile(tags map[string]string, chapters []Chapter) (metadat
 // sanitizeMetadata escapes characters that are special in ffmpeg metadata files
 // ('=', ';', '#', '\') with a backslash.
 func sanitizeMetadata(input string) string {
-	// Unescape any already-escaped sequences to avoid double-escaping.
-	output := strings.ReplaceAll(input, "\\\\", "\\")
-	output = strings.ReplaceAll(output, "\\=", "=")
-	output = strings.ReplaceAll(output, "\\;", ";")
-	output = strings.ReplaceAll(output, "\\#", "#")
-
-	matches := illegalMetadataChars.FindAllStringIndex(output, -1)
-	for i := len(matches) - 1; i >= 0; i-- {
-		output = output[:matches[i][0]] + "\\" + output[matches[i][0]:]
+	var sb strings.Builder
+	sb.Grow(len(input))
+	for i := 0; i < len(input); i++ {
+		c := input[i]
+		if c == '\\' && i+1 < len(input) {
+			next := input[i+1]
+			if next == '\\' || next == '=' || next == ';' || next == '#' {
+				// already a valid escape sequence — copy it verbatim
+				sb.WriteByte(c)
+				sb.WriteByte(next)
+				i++
+				continue
+			}
+		}
+		if c == '#' || c == ';' || c == '=' || c == '\\' {
+			sb.WriteByte('\\')
+		}
+		sb.WriteByte(c)
 	}
-	return output
+	return sb.String()
 }
 
 func getFFmpegStats(mp3Filepath string) (string, error) {

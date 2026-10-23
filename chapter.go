@@ -52,7 +52,7 @@ func timeBaseMultiplier(timeBase string) int {
 		return defaultTimeBaseInt
 	}
 	multiplier, err := strconv.Atoi(matches[1])
-	if err != nil {
+	if err != nil || multiplier == 0 {
 		return defaultTimeBaseInt
 	}
 	return multiplier

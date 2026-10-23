@@ -37,8 +37,8 @@ func (b *MP3Builder) Build(filePath string) error {
 		return fmt.Errorf("no streams to persist")
 	}
 
-	b.chapters = mergeChapters(b.chapters)
-	tempMetadataFile, err := createTempMetadataFile(b.metaData, b.chapters)
+	chapters := mergeChapters(append([]Chapter(nil), b.chapters...))
+	tempMetadataFile, err := createTempMetadataFile(b.metaData, chapters)
 	if err != nil {
 		return err
 	}
@@ -80,7 +80,7 @@ func (b *MP3Builder) Build(filePath string) error {
 // Append adds a segment of an MP3 file to the builder.
 // Pass EndOfFile as endInSeconds to read to the end of the file.
 func (b *MP3Builder) Append(mp3Filepath string, startInSeconds, endInSeconds float64) error {
-	if endInSeconds != EndOfFile && startInSeconds > endInSeconds {
+	if endInSeconds != EndOfFile && startInSeconds >= endInSeconds {
 		return fmt.Errorf("start %v set after end %v", startInSeconds, endInSeconds)
 	}
 
