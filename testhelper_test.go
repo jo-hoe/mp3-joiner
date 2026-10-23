@@ -1,6 +1,7 @@
 package mp3joiner
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -45,9 +46,9 @@ func storeFileForCleanUp(t *testing.T, filename string) {
 func copyFile(src, dst string) error {
 	data, err := os.ReadFile(src)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read source file: %w", err)
 	}
-	return os.WriteFile(dst, data, 0644)
+	return os.WriteFile(dst, data, 0o600)
 }
 
 func checkErr(t *testing.T, err error, msg string) {

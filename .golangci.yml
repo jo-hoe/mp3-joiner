@@ -1,0 +1,92 @@
+version: "2"
+
+linters:
+  enable:
+    - bodyclose
+    - copyloopvar
+    - dogsled
+    - dupl
+    - errcheck
+    - errname
+    - errorlint
+    - exhaustive
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - goprintffuncname
+    - gosec
+    - govet
+    - ineffassign
+    - misspell
+    - noctx
+    - nolintlint
+    - prealloc
+    - predeclared
+    - revive
+    - staticcheck
+    - thelper
+    - unconvert
+    - unparam
+    - unused
+    - whitespace
+    - wrapcheck
+  settings:
+    gocognit:
+      min-complexity: 15
+    gocyclo:
+      min-complexity: 15
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+    misspell:
+      locale: US
+    revive:
+      rules:
+        - name: exported
+        - name: var-naming
+        - name: package-comments
+    dupl:
+      threshold: 100
+    exhaustive:
+      default-signifies-exhaustive: true
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+    wrapcheck:
+      ignore-package-globs:
+        - github.com/jo-hoe/mp3-joiner/*
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - dupl
+          - gosec
+          - goconst
+          - wrapcheck
+          - noctx
+          - gocognit
+
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - goimports
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/jo-hoe/mp3-joiner)
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

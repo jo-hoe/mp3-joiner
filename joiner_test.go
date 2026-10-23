@@ -155,9 +155,9 @@ func TestMP3Builder_Build(t *testing.T) {
 			expectedNumberOfChapters: 6,
 			wantErr:                  false,
 		}, {
-			name:    "file not available",
-			c:       createContainerWithSameFile(t, []secondsWindow{}),
-			outputPath: "dummy 1",
+			name:                     "file not available",
+			c:                        createContainerWithSameFile(t, []secondsWindow{}),
+			outputPath:               "dummy 1",
 			expectedLengthInSeconds:  -1,
 			expectedNumberOfChapters: -1,
 			wantErr:                  true,

@@ -8,7 +8,7 @@ import (
 )
 
 func runCmd(name string, args ...string) (string, error) {
-	cmd := exec.Command(name, args...)
+	cmd := exec.Command(name, args...) //nolint:gosec,noctx // name and args are controlled by internal callers only
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf

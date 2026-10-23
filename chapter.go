@@ -1,3 +1,4 @@
+// Package mp3joiner provides utilities for joining and manipulating MP3 files.
 package mp3joiner
 
 import (
@@ -8,7 +9,7 @@ import (
 
 const defaultTimeBaseInt = 1_000_000_000
 
-var timeBaseRegex = regexp.MustCompile(`1/([0-9]*)`)
+var timeBaseRegex = regexp.MustCompile(`1/(\d*)`)
 
 // Tags holds the title metadata for a chapter.
 type Tags struct {
@@ -43,7 +44,7 @@ type ffprobeFormat struct {
 }
 
 func timeBaseMultiplier(timeBase string) int {
-	if len(timeBase) == 0 {
+	if timeBase == "" {
 		return defaultTimeBaseInt
 	}
 	matches := timeBaseRegex.FindStringSubmatch(timeBase)
@@ -89,7 +90,7 @@ func sortChaptersByStart(chapters []Chapter) {
 	})
 }
 
-func getChapterInTimeFrame(chapters []Chapter, startInSeconds float64, endInSeconds float64) []Chapter {
+func getChapterInTimeFrame(chapters []Chapter, startInSeconds, endInSeconds float64) []Chapter {
 	result := make([]Chapter, 0)
 	for _, chapter := range chapters {
 		if !isChapterInTimeFrame(chapter, startInSeconds, endInSeconds) {
@@ -107,7 +108,7 @@ func getChapterInTimeFrame(chapters []Chapter, startInSeconds float64, endInSeco
 	return result
 }
 
-func isChapterInTimeFrame(chapter Chapter, startInSeconds float64, endInSeconds float64) bool {
+func isChapterInTimeFrame(chapter Chapter, startInSeconds, endInSeconds float64) bool {
 	return chapter.GetStartTimeInSeconds() < endInSeconds && chapter.GetEndTimeInSeconds() > startInSeconds
 }
 

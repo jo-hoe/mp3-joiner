@@ -10,9 +10,11 @@ import (
 	"strings"
 )
 
+const ffprobeOutputFormat = "json"
+
 var (
 	illegalMetadataChars = regexp.MustCompile(`(#|;|=|\\)`)
-	ffmpegStatsRegex     = regexp.MustCompile(`.+time=(?:.*)([0-9]{2,99}):([0-9]{2}):([0-9]{2}).([0-9]{2})`)
+	ffmpegStatsRegex     = regexp.MustCompile(`.+time=(?:.*)(\d{2,99}):(\d{2}):(\d{2}).(\d{2})`)
 )
 
 type ffprobeChapters struct {
@@ -32,7 +34,7 @@ type ffprobeStream struct {
 // https://wiki.multimedia.cx/index.php/FFmpeg_Metadata#MP3
 func GetFFmpegMetadataTag(mp3Filepath string) (map[string]string, error) {
 	var data ffprobeFormat
-	args := []string{"-hide_banner", "-v", "0", "-show_entries", "format", "-of", "json"}
+	args := []string{"-hide_banner", "-v", "0", "-show_entries", "format", "-of", ffprobeOutputFormat}
 	if err := ffprobe(mp3Filepath, args, &data); err != nil {
 		return nil, err
 	}
@@ -42,7 +44,7 @@ func GetFFmpegMetadataTag(mp3Filepath string) (map[string]string, error) {
 // GetChapterMetadata returns the chapters embedded in an MP3 file, sorted by start time.
 func GetChapterMetadata(mp3Filepath string) ([]Chapter, error) {
 	var data ffprobeChapters
-	args := []string{"-hide_banner", "-v", "0", "-print_format", "json", "-show_chapters"}
+	args := []string{"-hide_banner", "-v", "0", "-print_format", ffprobeOutputFormat, "-show_chapters"}
 	if err := ffprobe(mp3Filepath, args, &data); err != nil {
 		return nil, err
 	}
@@ -74,7 +76,11 @@ func GetBitrate(mp3Filepath string) (int, error) {
 	if len(data.Streams) == 0 {
 		return 0, fmt.Errorf("no audio streams found in %s", mp3Filepath)
 	}
-	return strconv.Atoi(data.Streams[0].Bitrate)
+	bitrate, err := strconv.Atoi(data.Streams[0].Bitrate)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse bitrate: %w", err)
+	}
+	return bitrate, nil
 }
 
 // SetFFmpegMetadataTag writes metadata tags and chapters to an MP3 file in-place.
@@ -96,7 +102,10 @@ func ffprobe(mp3Filepath string, extraArgs []string, v any) error {
 	if err != nil {
 		return fmt.Errorf("ffprobe failed: %w - output: %s", err, output)
 	}
-	return json.Unmarshal([]byte(output), v)
+	if err := json.Unmarshal([]byte(output), v); err != nil {
+		return fmt.Errorf("failed to parse ffprobe output: %w", err)
+	}
+	return nil
 }
 
 func setMetadataWithBitrate(mp3Filepath string, tags map[string]string, chapters []Chapter, bitrate int) error {
@@ -108,7 +117,7 @@ func setMetadataWithBitrate(mp3Filepath string, tags map[string]string, chapters
 
 	tempFile, err := os.CreateTemp("", "*.mp3")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create temp file: %w", err)
 	}
 	tempFilePath := tempFile.Name()
 	closeFile(tempFile)
@@ -132,18 +141,20 @@ func setMetadataWithBitrate(mp3Filepath string, tags map[string]string, chapters
 }
 
 func overwriteFile(inputFilePath, outputFilePath string) error {
-	targetFile, err := os.OpenFile(outputFilePath, os.O_RDWR|os.O_TRUNC, 0755)
+	targetFile, err := os.OpenFile(outputFilePath, os.O_RDWR|os.O_TRUNC, 0o600) //nolint:gosec // path is controlled by internal callers only
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open output file: %w", err)
 	}
 	defer closeFile(targetFile)
-	sourceFile, err := os.Open(inputFilePath)
+	sourceFile, err := os.Open(inputFilePath) //nolint:gosec // path is controlled by internal callers only
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open input file: %w", err)
 	}
 	defer closeFile(sourceFile)
-	_, err = io.Copy(targetFile, sourceFile)
-	return err
+	if _, err = io.Copy(targetFile, sourceFile); err != nil {
+		return fmt.Errorf("failed to copy file: %w", err)
+	}
+	return nil
 }
 
 // createTempMetadataFile writes an ffmpeg metadata file to a temp path and returns it.
@@ -151,7 +162,7 @@ func overwriteFile(inputFilePath, outputFilePath string) error {
 func createTempMetadataFile(tags map[string]string, chapters []Chapter) (metadataFilepath string, err error) {
 	tempFile, err := os.CreateTemp("", "ffmpegMetaData")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to create temp metadata file: %w", err)
 	}
 	defer func() {
 		if cerr := tempFile.Close(); cerr != nil && err == nil {
@@ -173,8 +184,10 @@ func createTempMetadataFile(tags map[string]string, chapters []Chapter) (metadat
 		fmt.Fprintf(&sb, "\ntitle=%s", sanitizeMetadata(chapter.Tags.Title))
 	}
 
-	_, err = tempFile.WriteString(sb.String())
-	return metadataFilepath, err
+	if _, err = tempFile.WriteString(sb.String()); err != nil {
+		return metadataFilepath, fmt.Errorf("failed to write metadata file: %w", err)
+	}
+	return metadataFilepath, nil
 }
 
 // sanitizeMetadata escapes characters that are special in ffmpeg metadata files
@@ -211,19 +224,19 @@ func parseMP3Length(ffmpegStats string) (float64, error) {
 	}
 	hours, err := strconv.Atoi(matches[1])
 	if err != nil {
-		return -1, err
+		return -1, fmt.Errorf("failed to parse hours: %w", err)
 	}
 	minutes, err := strconv.Atoi(matches[2])
 	if err != nil {
-		return -1, err
+		return -1, fmt.Errorf("failed to parse minutes: %w", err)
 	}
 	seconds, err := strconv.Atoi(matches[3])
 	if err != nil {
-		return -1, err
+		return -1, fmt.Errorf("failed to parse seconds: %w", err)
 	}
 	milliseconds, err := strconv.Atoi(matches[4])
 	if err != nil {
-		return -1, err
+		return -1, fmt.Errorf("failed to parse milliseconds: %w", err)
 	}
 	total := (hours * 3600) + (minutes * 60) + seconds
 	return float64(total) + float64(milliseconds)*0.01, nil

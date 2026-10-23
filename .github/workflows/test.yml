@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
   schedule:
       - cron: '0 3 15 * *' # once every per month on the 15th at 03:00 UTC
-      
+
 name: test
 jobs:
   test:
@@ -20,23 +20,23 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
-    - uses: FedericoCarboni/setup-ffmpeg@v3.1
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+    - uses: FedericoCarboni/setup-ffmpeg@37062fbf7149fc5578d6c57e08aed62458b375d6 # v3.1
       id: setup-ffmpeg
     - run: ffmpeg -version
     - name: Install Go
       if: success()
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
       with:
         go-version: ${{ matrix.go-version }}
     - name: Run tests
       run: go test -v ./... -covermode=count -coverprofile=coverage.out
     - name: Convert coverage.out to coverage.lcov
       if: matrix.platform == 'ubuntu-latest'
-      uses: jandelgado/gcov2lcov-action@v1
+      uses: jandelgado/gcov2lcov-action@e4612787670fc5b5f49026b8c29c5569921de1db # v1
     - name: Coveralls
       if: matrix.platform == 'ubuntu-latest'
-      uses: coverallsapp/github-action@v2
+      uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2
       with:
         github-token: ${{ secrets.github_token }}
         path-to-lcov: coverage.lcov

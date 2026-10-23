@@ -60,8 +60,7 @@ func (b *MP3Builder) Build(filePath string) error {
 		sb.WriteString("[" + strconv.Itoa(i) + ":a]")
 	}
 	fmt.Fprintf(&sb, "concat=n=%d:v=0:a=1[aout]", len(b.streams))
-	args = append(args, "-filter_complex", sb.String())
-	args = append(args, "-map", "[aout]")
+	args = append(args, "-filter_complex", sb.String(), "-map", "[aout]")
 
 	metadataIndex := strconv.Itoa(len(b.streams))
 	args = append(args,
@@ -80,7 +79,7 @@ func (b *MP3Builder) Build(filePath string) error {
 
 // Append adds a segment of an MP3 file to the builder.
 // Pass EndOfFile as endInSeconds to read to the end of the file.
-func (b *MP3Builder) Append(mp3Filepath string, startInSeconds float64, endInSeconds float64) error {
+func (b *MP3Builder) Append(mp3Filepath string, startInSeconds, endInSeconds float64) error {
 	if endInSeconds != EndOfFile && startInSeconds > endInSeconds {
 		return fmt.Errorf("start %v set after end %v", startInSeconds, endInSeconds)
 	}
