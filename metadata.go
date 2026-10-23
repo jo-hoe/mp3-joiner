@@ -12,6 +12,8 @@ import (
 )
 
 const ffprobeOutputFormat = "json"
+const ffprobeHideBanner = "-hide_banner"
+const ffprobePrintFormat = "-print_format"
 
 var ffmpegStatsRegex = regexp.MustCompile(`.+time=(?:.*)(\d{2,99}):(\d{2}):(\d{2}).(\d{2})`)
 
@@ -28,7 +30,7 @@ type ffprobeStream struct {
 }
 
 type ffprobeAllData struct {
-	Streams  []ffprobeStream  `json:"streams,omitempty"`
+	Streams  []ffprobeStream `json:"streams,omitempty"`
 	Format   struct {
 		Tags map[string]string `json:"tags,omitempty"`
 	} `json:"format,omitempty"`
@@ -40,7 +42,7 @@ type ffprobeAllData struct {
 // https://wiki.multimedia.cx/index.php/FFmpeg_Metadata#MP3
 func GetFFmpegMetadataTag(mp3Filepath string) (map[string]string, error) {
 	var data ffprobeFormat
-	args := []string{"-hide_banner", "-v", "0", "-show_entries", "format", "-of", ffprobeOutputFormat}
+	args := []string{ffprobeHideBanner, "-v", "0", "-show_entries", "format", "-of", ffprobeOutputFormat}
 	if err := ffprobe(mp3Filepath, args, &data); err != nil {
 		return nil, err
 	}
@@ -50,7 +52,7 @@ func GetFFmpegMetadataTag(mp3Filepath string) (map[string]string, error) {
 // GetChapterMetadata returns the chapters embedded in an MP3 file, sorted by start time.
 func GetChapterMetadata(mp3Filepath string) ([]Chapter, error) {
 	var data ffprobeChapters
-	args := []string{"-hide_banner", "-v", "0", "-print_format", ffprobeOutputFormat, "-show_chapters"}
+	args := []string{ffprobeHideBanner, "-v", "0", ffprobePrintFormat, ffprobeOutputFormat, "-show_chapters"}
 	if err := ffprobe(mp3Filepath, args, &data); err != nil {
 		return nil, err
 	}
@@ -114,11 +116,11 @@ func ffprobe(mp3Filepath string, extraArgs []string, v any) error {
 	return nil
 }
 
-func getFileMetadata(mp3Filepath string) ([]Chapter, map[string]string, int, error) {
+func getFileMetadata(mp3Filepath string) (chapters []Chapter, tags map[string]string, bitrate int, err error) {
 	var data ffprobeAllData
 	args := []string{
-		"-hide_banner", "-v", "0",
-		"-print_format", "json",
+		ffprobeHideBanner, "-v", "0",
+		ffprobePrintFormat, "json",
 		"-show_format",
 		"-show_streams",
 		"-show_chapters",
@@ -126,7 +128,7 @@ func getFileMetadata(mp3Filepath string) ([]Chapter, map[string]string, int, err
 	if err := ffprobe(mp3Filepath, args, &data); err != nil {
 		return nil, nil, 0, err
 	}
-	chapters := make([]Chapter, len(data.Chapters))
+	chapters = make([]Chapter, len(data.Chapters))
 	for i, c := range data.Chapters {
 		chapters[i] = c.toChapter()
 	}
@@ -134,7 +136,7 @@ func getFileMetadata(mp3Filepath string) ([]Chapter, map[string]string, int, err
 	if len(data.Streams) == 0 {
 		return nil, nil, 0, fmt.Errorf("no audio streams found in %s", mp3Filepath)
 	}
-	bitrate, err := strconv.Atoi(data.Streams[0].Bitrate)
+	bitrate, err = strconv.Atoi(data.Streams[0].Bitrate)
 	if err != nil {
 		return nil, nil, 0, fmt.Errorf("failed to parse bitrate: %w", err)
 	}
