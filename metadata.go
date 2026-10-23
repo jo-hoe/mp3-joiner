@@ -151,23 +151,22 @@ func overwriteFile(inputFilePath, outputFilePath string) error {
 	}
 	tmpPath := tmpFile.Name()
 	defer func() {
-		// clean up the temp file if we did not rename it away
 		if _, serr := os.Stat(tmpPath); serr == nil {
-			os.Remove(tmpPath)
+			_ = os.Remove(tmpPath) //nolint:errcheck // best-effort cleanup
 		}
 	}()
 
 	sourceFile, err := os.Open(inputFilePath) //nolint:gosec // path is controlled by internal callers only
 	if err != nil {
-		tmpFile.Close()
+		closeFile(tmpFile)
 		return fmt.Errorf("failed to open input file: %w", err)
 	}
 	if _, err = io.Copy(tmpFile, sourceFile); err != nil {
-		tmpFile.Close()
-		sourceFile.Close()
+		closeFile(tmpFile)
+		closeFile(sourceFile)
 		return fmt.Errorf("failed to copy file: %w", err)
 	}
-	sourceFile.Close()
+	closeFile(sourceFile)
 	if err = tmpFile.Close(); err != nil {
 		return fmt.Errorf("failed to flush temp file: %w", err)
 	}
