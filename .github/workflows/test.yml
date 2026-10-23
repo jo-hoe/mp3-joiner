@@ -21,7 +21,7 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v7
-    - uses: FedericoCarboni/setup-ffmpeg@v3
+    - uses: FedericoCarboni/setup-ffmpeg@v3.1
       id: setup-ffmpeg
     - run: ffmpeg -version
     - name: Install Go
